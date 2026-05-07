@@ -812,7 +812,7 @@ const CONTAINERS = {
   // Custom
   "custom":   { name: "Custom",          type: "custom",   length: 10000, width: 2400, height: 2500, maxWeight: 20000 }
 };
-const STORAGE_KEY = "containerLoadingPlannerV8";
+const STORAGE_KEY = "containerLoadingPlannerV9";
 
 /* ---------------------------------------------------------- modello in-memory */
 const state = {
@@ -1058,6 +1058,7 @@ __M.CONTAINERS = CONTAINERS;
 __M.STORAGE_KEY = STORAGE_KEY;
 __M.state = state;
 __M.footprint = footprint;
+__M.activeContainer = activeContainer;
 __M.aabb = aabb;
 __M.overlaps = overlaps;
 __M.isInside = isInside;
@@ -1592,7 +1593,7 @@ __M.optimizeLayout = optimizeLayout;
 (function(){
 /* view2d.js — riscritto: coordinate in mm, scaling via transform */
 
-const { state, CONTAINERS, footprint, overlaps, isInside, setPlacedPosition, rotatePlaced, pushHistory, save } = __M;
+const { state, CONTAINERS, footprint, overlaps, isInside, setPlacedPosition, rotatePlaced, pushHistory, save, activeContainer } = __M;
 
 let dragCtx = null;
 let panCtx  = null;
@@ -1786,7 +1787,7 @@ __M.view2d = __M.view2d || {}; __M.view2d.requestFit = requestFit;
    Convenzioni: X = lunghezza container (porta a x=0), Y = larghezza, Z = altezza.
    Sullo schermo Z punta verso l'alto (y_schermo decrescente). */
 
-const { state, CONTAINERS, footprint } = __M;
+const { state, CONTAINERS, footprint, activeContainer } = __M;
 
 let onChange = () => {};
 let dragging3d = null;
@@ -2585,7 +2586,7 @@ __M.ux = __M.ux || {}; __M.ux.openAssetModal = openAssetModal;
      - sezione "validazione spedizione" con check passa/fallisce
    ========================================================================== */
 
-const { state, CONTAINERS, footprint } = __M;
+const { state, CONTAINERS, footprint, activeContainer } = __M;
 const { summary } = __M;
 function buildAndPrint() {
   const c = activeContainer();
@@ -2827,7 +2828,7 @@ __M.buildAndPrint = buildAndPrint;
    Orchestratore: carica state, inizializza moduli, registra callback render.
    ========================================================================== */
 
-const { state, CONTAINERS, footprint, save, load, pushHistory, overlaps, isInside } = __M;
+const { state, CONTAINERS, footprint, save, load, pushHistory, overlaps, isInside, activeContainer } = __M;
 const { DEFAULT_ASSETS } = __M;
 const { optimizeLayout } = __M;
 const { summary } = __M;
@@ -3106,7 +3107,7 @@ document.addEventListener("DOMContentLoaded", bootstrap);
 <script type="module">
 import { requireAuth, signOut, loadProject, saveProject, createShareLink, revokeShareLink } from "/lib/auth.js";
 
-const STORAGE_KEY = "containerLoadingPlannerV8";
+const STORAGE_KEY = "containerLoadingPlannerV9";
 
 const user = await requireAuth();
 if (user) {
