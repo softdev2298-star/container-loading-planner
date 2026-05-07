@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team — Container Loading Planner</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles/site.css">
+</head>
+<body>
+
+<header class="siteHeader">
+  <a href="/" class="brand">
+    <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2" y="2" width="36" height="36" rx="6" fill="#0f172a"/>
+      <rect x="7" y="11" width="26" height="18" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+      <rect x="9"  y="13" width="9"  height="6" fill="#fbbf24"/>
+      <rect x="19" y="13" width="6"  height="6" fill="#fbbf24" opacity="0.85"/>
+      <rect x="26" y="13" width="6"  height="6" fill="#fbbf24" opacity="0.7"/>
+      <rect x="9"  y="20" width="6"  height="8" fill="#fbbf24" opacity="0.75"/>
+      <rect x="16" y="20" width="9"  height="4" fill="#fbbf24" opacity="0.85"/>
+      <rect x="16" y="25" width="4"  height="3" fill="#fbbf24" opacity="0.6"/>
+      <rect x="21" y="25" width="4"  height="3" fill="#fbbf24" opacity="0.6"/>
+      <rect x="26" y="20" width="6"  height="8" fill="#fbbf24" opacity="0.9"/>
+    </svg>
+    <span>Container Loading Planner</span>
+  </a>
+  <nav>
+    <a href="/dashboard.html">Progetti</a>
+    <a href="/team.html"><b>Team</b></a>
+    <span id="userEmail" style="margin-left:12px;color:#64748b;font-size:14px"></span>
+    <a href="#" id="logoutBtn" class="btn ghost">Logout</a>
+  </nav>
+</header>
+
+<main class="dashWrap">
+  <div class="dashHeader">
+    <div>
+      <h1>Team</h1>
+      <p style="margin:4px 0 0;color:#64748b" id="companyInfo"></p>
+    </div>
+    <button id="inviteBtn" class="btn primary">+ Invita membro</button>
+  </div>
+
+  <div id="content"><p>Caricamento…</p></div>
+</main>
+
+<div class="modalBackdrop" id="inviteModal" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <div class="modalHead">
+      <h2>Invita un nuovo membro</h2>
+      <button id="closeInviteModal">✕</button>
+    </div>
+    <p style="color:#64748b;font-size:13px;margin-bottom:12px">
+      Genera un link di invito da condividere via email o messaggio. L'invito è valido per 14 giorni.
+    </p>
+    <div class="field">
+      <label for="inviteEmail">Email del membro</label>
+      <input id="inviteEmail" type="email" required>
+    </div>
+    <div id="inviteResult" style="display:none"></div>
+    <div class="actions" style="justify-content:flex-end;margin-top:14px">
+      <button id="closeInviteBtn" class="btn ghost">Chiudi</button>
+      <button id="generateInviteBtn" class="btn primary">Genera link invito</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  requireAuth, signOut, currentUser,
+  getMyCompany, listTeamMembers, listInvitations,
+  createInvitation, deleteInvitation, removeMember
+} from "/lib/auth.js";
+
+const user = await requireAuth();
+if (user) document.getElementById("userEmail").textContent = user.email;
+document.getElementById("logoutBtn").addEventListener("click", e => { e.preventDefault(); signOut(); });
+
+const company = await getMyCompany();
+if (!company) {
+  document.getElementById("content").innerHTML = `
+    <div class="emptyState">
+      <h2>Nessuna azienda associata al tuo account</h2>
+      <p>Vai al dashboard per crearne una salvando un progetto.</p>
+      <a href="/dashboard.html" class="btn primary">Vai al dashboard</a>
+    </div>`;
+  document.getElementById("inviteBtn").style.display = "none";
+} else {
+  document.getElementById("companyInfo").innerHTML =
+    `<b>${esc(company.name)}</b> · ${esc(company.country)} · Il tuo ruolo: <b>${company.role === "admin" ? "Admin" : "Membro"}</b>`;
+  if (company.role !== "admin") document.getElementById("inviteBtn").style.display = "none";
+  await refresh();
+}
+
+async function refresh() {
+  try {
+    const [members, invites] = await Promise.all([
+      listTeamMembers(company.id),
+      company.role === "admin" ? listInvitations(company.id) : Promise.resolve([])
+    ]);
+
+    let html = `<h2 style="margin-top:24px;font-size:18px">Membri attivi (${members.length})</h2><div class="memberList">`;
+    members.forEach(m => {
+      const isMe = m.user_id === user.id;
+      html += `<div class="memberRow">
+        <div>
+          <strong>${isMe ? "Tu" : "Membro"}</strong>
+          <small style="display:block;color:#64748b">Ruolo: ${m.role === "admin" ? "Admin" : "Membro"}</small>
+        </div>
+        ${(company.role === "admin" && !isMe) ?
+          `<button class="btn ghost" data-remove="${m.id}" style="background:white;border-color:#fecaca;color:#dc2626">Rimuovi</button>` : ""}
+      </div>`;
+    });
+    html += `</div>`;
+
+    if (company.role === "admin") {
+      html += `<h2 style="margin-top:32px;font-size:18px">Inviti pendenti (${invites.length})</h2>`;
+      if (!invites.length) {
+        html += `<p style="color:#64748b">Nessun invito pendente. Clicca "+ Invita membro" per aggiungere persone.</p>`;
+      } else {
+        html += `<div class="memberList">`;
+        invites.forEach(inv => {
+          const expired = inv.expires_at && new Date(inv.expires_at) < new Date();
+          html += `<div class="memberRow">
+            <div>
+              <strong>${esc(inv.email)}</strong>
+              <small style="display:block;color:#64748b">${expired ? "⚠ Scaduto" : "In attesa"} · Inviato ${formatDate(inv.created_at)}</small>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn ghost" data-copy="${inv.token}">Copia link</button>
+              <button class="btn ghost" data-cancel="${inv.id}" style="background:white;border-color:#fecaca;color:#dc2626">Annulla</button>
+            </div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+    }
+    document.getElementById("content").innerHTML = html;
+
+    document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", async () => {
+      if (!confirm("Rimuovere questo membro dal team?")) return;
+      try { await removeMember(b.dataset.remove); refresh(); }
+      catch (e) { alert("Errore: " + e.message); }
+    }));
+    document.querySelectorAll("[data-cancel]").forEach(b => b.addEventListener("click", async () => {
+      if (!confirm("Annullare questo invito?")) return;
+      try { await deleteInvitation(b.dataset.cancel); refresh(); }
+      catch (e) { alert("Errore: " + e.message); }
+    }));
+    document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => {
+      const url = location.origin + "/signup.html?invite=" + b.dataset.copy;
+      navigator.clipboard.writeText(url);
+      const o = b.textContent; b.textContent = "✓ Copiato";
+      setTimeout(() => b.textContent = o, 1500);
+    }));
+  } catch (err) {
+    document.getElementById("content").innerHTML = `<div class="emptyState"><p>Errore: ${esc(err.message)}</p></div>`;
+  }
+}
+
+document.getElementById("inviteBtn")?.addEventListener("click", () => {
+  document.getElementById("inviteModal").style.display = "flex";
+  document.getElementById("inviteResult").style.display = "none";
+  document.getElementById("inviteEmail").value = "";
+});
+document.getElementById("closeInviteModal").addEventListener("click", () => document.getElementById("inviteModal").style.display = "none");
+document.getElementById("closeInviteBtn").addEventListener("click", () => document.getElementById("inviteModal").style.display = "none");
+
+document.getElementById("generateInviteBtn").addEventListener("click", async () => {
+  const email = document.getElementById("inviteEmail").value.trim();
+  if (!email || !email.includes("@")) { alert("Email non valida"); return; }
+  try {
+    const inv = await createInvitation(company.id, email);
+    const url = location.origin + "/signup.html?invite=" + inv.token;
+    document.getElementById("inviteResult").innerHTML = `
+      <div class="authMessage success" style="margin-top:12px">
+        ✓ Invito creato. Condividi questo link:
+        <input readonly value="${esc(url)}" style="margin-top:8px;width:100%;padding:8px;font-family:monospace;font-size:11px;border:1px solid #ddd;border-radius:6px;background:white">
+        <button class="btn primary" style="margin-top:8px;width:100%" id="copyResultBtn">Copia link</button>
+      </div>`;
+    document.getElementById("inviteResult").style.display = "block";
+    document.getElementById("copyResultBtn").addEventListener("click", () => {
+      navigator.clipboard.writeText(url);
+      document.getElementById("copyResultBtn").textContent = "✓ Copiato";
+    });
+    refresh();
+  } catch (e) { alert("Errore: " + e.message); }
+});
+
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function formatDate(s) { if (!s) return ""; return new Date(s).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" }); }
+</script>
+
+<style>
+.memberList { display: flex; flex-direction: column; gap: 8px; margin-top: 12px }
+.memberRow {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.memberRow strong { font-size: 14px }
+.memberRow small { font-size: 12px }
+</style>
+
+</body>
+</html>
