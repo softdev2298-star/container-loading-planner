@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy — Container Loading Planner</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles/site.css">
+</head>
+<body>
+<header class="siteHeader">
+  <a href="/" class="brand">
+    <svg width="40" height="40" viewBox="0 0 40 40">
+      <rect x="2" y="2" width="36" height="36" rx="6" fill="#0f172a"/>
+      <rect x="7" y="11" width="26" height="18" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+      <rect x="9"  y="13" width="9"  height="6" fill="#fbbf24"/>
+      <rect x="19" y="13" width="6"  height="6" fill="#fbbf24" opacity="0.85"/>
+      <rect x="26" y="13" width="6"  height="6" fill="#fbbf24" opacity="0.7"/>
+      <rect x="9"  y="20" width="6"  height="8" fill="#fbbf24" opacity="0.75"/>
+      <rect x="16" y="20" width="9"  height="4" fill="#fbbf24" opacity="0.85"/>
+      <rect x="16" y="25" width="4"  height="3" fill="#fbbf24" opacity="0.6"/>
+      <rect x="21" y="25" width="4"  height="3" fill="#fbbf24" opacity="0.6"/>
+      <rect x="26" y="20" width="6"  height="8" fill="#fbbf24" opacity="0.9"/>
+    </svg>
+    <span>Container Loading Planner</span>
+  </a>
+  <nav><a href="/login.html" class="btn ghost">Accedi</a></nav>
+</header>
+
+<main style="max-width:760px;margin:48px auto;padding:0 24px;line-height:1.6">
+<h1>Informativa privacy</h1>
+<p style="color:#64748b">Ultimo aggiornamento: <span id="d"></span></p>
+
+<h2>1. Titolare del trattamento</h2>
+<p>Il titolare del trattamento dei dati personali è [INSERISCI NOME / RAGIONE SOCIALE], contattabile all'indirizzo email [INSERISCI EMAIL].</p>
+
+<h2>2. Dati raccolti</h2>
+<p>Per fornire il servizio, raccogliamo:</p>
+<ul>
+  <li><strong>Email</strong>: per registrazione, login e comunicazioni di servizio.</li>
+  <li><strong>Password</strong>: salvata in forma crittografata, non leggibile da noi.</li>
+  <li><strong>Progetti salvati</strong>: i contenuti dei layout container che decidi di salvare in cloud (nomi, dimensioni, posizioni casse).</li>
+  <li><strong>Dati tecnici</strong>: indirizzo IP, browser, log di accesso, conservati per ragioni di sicurezza.</li>
+</ul>
+
+<h2>3. Finalità</h2>
+<p>I dati sono usati esclusivamente per: erogare il servizio, autenticare l'utente, salvare i progetti, garantire la sicurezza, inviare comunicazioni di servizio.</p>
+
+<h2>4. Conservazione</h2>
+<p>I dati sono conservati finché l'account è attivo. Puoi richiedere la cancellazione dell'account scrivendo a [INSERISCI EMAIL].</p>
+
+<h2>5. Condivisione con terzi</h2>
+<p>I dati sono ospitati su <strong>Supabase</strong> (autenticazione e database) e <strong>Vercel</strong> (hosting). Non vendiamo dati a terzi e non li condividiamo a fini di marketing.</p>
+
+<h2>6. Diritti</h2>
+<p>Hai diritto di accedere, correggere, esportare o cancellare i tuoi dati. Per esercitarli, contattaci a [INSERISCI EMAIL].</p>
+
+<h2>7. Cookie</h2>
+<p>Utilizziamo solo cookie tecnici e di sessione necessari al funzionamento del servizio. Nessun cookie di profilazione o tracciamento pubblicitario.</p>
+
+<p style="margin-top:48px"><a href="/" style="color:#2563eb">← Torna alla home</a></p>
+</main>
+
+<script>document.getElementById("d").textContent = new Date().toLocaleDateString("it-IT");</script>
+</body>
+</html>
