@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>I miei progetti — Container Loading Planner</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles/site.css">
+</head>
+<body>
+
+<header class="siteHeader">
+  <a href="/" class="brand">
+    <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="36" height="36" rx="9" fill="#0f172a"/>
+      <rect x="9"  y="22" width="8" height="9"  rx="1" fill="#fbbf24"/>
+      <rect x="18" y="16" width="8" height="15" rx="1" fill="#fbbf24"/>
+      <rect x="27" y="10" width="8" height="21" rx="1" fill="#fbbf24" opacity="0.55"/>
+    </svg>
+    <span>Container Loading Planner</span>
+  </a>
+  <nav>
+    <span id="userEmail" class="userEmail" style="margin-right:8px;color:#64748b;font-size:14px"></span>
+    <a href="#" id="logoutBtn" class="btn ghost">Logout</a>
+  </nav>
+</header>
+
+<main class="dashWrap">
+  <div class="dashHeader">
+    <h1>I miei progetti</h1>
+    <a href="/app.html" class="btn primary">+ Nuovo progetto</a>
+  </div>
+
+  <div id="content">
+    <div class="emptyState">
+      <p>Caricamento…</p>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { requireAuth, listProjects, deleteProject, signOut, supabase } from "/lib/auth.js";
+
+const user = await requireAuth();
+if (!user) {
+  // requireAuth già ha redirezionato
+} else {
+  document.getElementById("userEmail").textContent = user.email;
+}
+
+document.getElementById("logoutBtn").addEventListener("click", e => {
+  e.preventDefault();
+  signOut();
+});
+
+const content = document.getElementById("content");
+
+async function refresh() {
+  try {
+    const projects = await listProjects();
+    if (!projects.length) {
+      content.innerHTML = `
+        <div class="emptyState">
+          <h2>Non hai ancora progetti</h2>
+          <p>Crea il tuo primo layout container in pochi minuti.</p>
+          <a href="/app.html" class="btn primary big">+ Crea primo progetto</a>
+        </div>
+      `;
+      return;
+    }
+    content.innerHTML = `
+      <div class="projectGrid">
+        ${projects.map(p => `
+          <div class="projectCard" data-id="${p.id}">
+            <h3>${escape(p.name || "Senza nome")}</h3>
+            <p>${escape(p.container_key || "—")}</p>
+            <div class="meta">
+              <span>${formatDate(p.updated_at)}</span>
+              <button class="btn ghost" data-act="delete" data-id="${p.id}" style="padding:4px 8px;font-size:12px">Elimina</button>
+            </div>
+          </div>
+        `).join("")}
+        <a href="/app.html" class="projectCard newCard">
+          <div>
+            <div style="font-size:32px;margin-bottom:8px">+</div>
+            <strong>Nuovo progetto</strong>
+          </div>
+        </a>
+      </div>
+    `;
+    content.querySelectorAll(".projectCard[data-id]").forEach(el => {
+      el.addEventListener("click", e => {
+        if (e.target.dataset.act === "delete") return;
+        location.href = "/app.html?id=" + el.dataset.id;
+      });
+    });
+    content.querySelectorAll('[data-act="delete"]').forEach(btn => {
+      btn.addEventListener("click", async e => {
+        e.stopPropagation();
+        if (!confirm("Eliminare definitivamente questo progetto?")) return;
+        try {
+          await deleteProject(btn.dataset.id);
+          refresh();
+        } catch (err) { alert("Errore: " + err.message); }
+      });
+    });
+  } catch (err) {
+    content.innerHTML = `<div class="emptyState"><h2>Errore di caricamento</h2><p>${escape(err.message)}</p></div>`;
+  }
+}
+
+function formatDate(s) {
+  if (!s) return "";
+  const d = new Date(s);
+  return d.toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" });
+}
+function escape(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+refresh();
+</script>
+</body>
+</html>

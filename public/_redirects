@@ -1,0 +1,10 @@
+# Cloudflare Pages _redirects
+# Questo file abilita URL puliti senza .html visibile
+
+/login         /login.html         200
+/signup        /signup.html        200
+/dashboard     /dashboard.html     200
+/app           /app.html           200
+/privacy       /privacy.html       200
+/terms         /terms.html         200
+/reset-password /reset-password.html 200
