@@ -1,0 +1,3971 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Container Loading Planner</title>
+<style>
+/* ============================================================================
+   app.css — Container Loading Planner
+   ========================================================================== */
+
+* { box-sizing: border-box }
+
+:root {
+  --navy: #0a1628;
+  --navy-2: #1a2942;
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --line: rgba(10, 22, 40, 0.08);
+  --line-strong: rgba(10, 22, 40, 0.16);
+  --text: #0a1628;
+  --text-2: #5b6573;
+  --text-3: #8a93a1;
+  --accent: #1d4ed8;
+  --accent-soft: #eff4ff;
+  --bad: #dc2626;
+  --bad-soft: #fef2f2;
+  --ok: #047857;
+  --ok-soft: #ecfdf5;
+  --warn: #b45309;
+  --warn-soft: #fffbeb;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-sm: 7px;
+  --shadow-sm: 0 1px 2px rgba(10, 22, 40, 0.04);
+  --shadow: 0 1px 3px rgba(10, 22, 40, 0.06), 0 8px 24px rgba(10, 22, 40, 0.04);
+  --shadow-lg: 0 8px 32px rgba(10, 22, 40, 0.08);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app { min-height: 100vh; padding: 0 }
+
+.topbar, .panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.topbar {
+  max-width: 1900px;
+  margin: 0 auto 12px;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-radius: var(--radius-lg);
+}
+
+.brand { display: flex; align-items: center; gap: 12px }
+.brandLogo { flex-shrink: 0 }
+.brand span {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+h1, h2, p { margin: 0 }
+h1 { font-size: 22px; letter-spacing: -0.025em; font-weight: 600; color: var(--text) }
+h2 { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; margin-bottom: 8px }
+p  { font-size: 13px; color: var(--text-2); margin-top: 3px; line-height: 1.45 }
+
+.layout {
+  max-width: 1900px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: var(--sidebar-w, 340px) 8px 1fr;
+  gap: 0;
+  padding: 0 16px 16px;
+}
+.layoutResizer {
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  margin: 0 4px;
+  transition: background-color 0.15s ease;
+}
+.layoutResizer:hover { background: rgba(10, 22, 40, 0.04) }
+.layoutResizer:active { background: rgba(10, 22, 40, 0.08) }
+.layoutResizer::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 28px;
+  background: var(--line-strong);
+  border-radius: 2px;
+  transition: height 0.15s ease;
+}
+.layoutResizer:hover::before { height: 40px }
+
+.sidebar, .workspace { display: flex; flex-direction: column; gap: 12px }
+.panel {
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  transition: box-shadow 0.2s ease;
+}
+
+input, select, textarea {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 9px 11px;
+  font-size: 13px;
+  background: white;
+  color: var(--text);
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+}
+
+label.small { font-size: 11px; color: var(--text-2); display: block; margin-bottom: 5px; font-weight: 500; letter-spacing: 0.01em }
+
+button, .fileBtn {
+  border: 1px solid var(--line-strong);
+  background: white;
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+}
+button:hover, .fileBtn:hover { background: rgba(10, 22, 40, 0.03); border-color: rgba(10, 22, 40, 0.2) }
+button:active, .fileBtn:active { transform: scale(0.985) }
+
+.active, .primary {
+  background: var(--navy);
+  color: white;
+  border-color: var(--navy);
+}
+.active:hover, .primary:hover { background: var(--navy-2); border-color: var(--navy-2) }
+.dangerBtn { background: white; color: var(--bad); border-color: rgba(220, 38, 38, 0.2) }
+.dangerBtn:hover { background: var(--bad-soft); border-color: rgba(220, 38, 38, 0.4) }
+.goodBtn { background: var(--ok); color: white; border-color: var(--ok) }
+.goodBtn:hover { background: #036648; border-color: #036648 }
+.ghost { background: white; color: var(--text-2); font-weight: 400 }
+.ghost:hover { background: rgba(10, 22, 40, 0.04); color: var(--text) }
+
+.actions { display: flex; flex-wrap: wrap; gap: 6px }
+.metrics, .grid2, .grid3, .bottom-grid { display: grid; gap: 8px }
+.metrics, .grid2, .bottom-grid { grid-template-columns: 1fr 1fr }
+.grid3 { grid-template-columns: 1fr 1fr 1fr }
+
+.info, .summary {
+  background: rgba(10, 22, 40, 0.025);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  transition: border-color 0.2s ease;
+}
+.info span, .number span {
+  display: block;
+  color: var(--text-2);
+  font-size: 11px;
+  margin-bottom: 3px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.info strong { font-size: 14px; font-weight: 600; color: var(--text) }
+
+.summary { margin-top: 8px }
+.summary div { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0 }
+.summary div:first-of-type { padding-top: 0 }
+.danger { color: var(--bad) }
+
+/* libreria */
+.libraryTools { display: flex; gap: 8px; margin-bottom: 10px }
+.asset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 470px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.asset-list::-webkit-scrollbar { width: 6px }
+.asset-list::-webkit-scrollbar-thumb { background: rgba(10, 22, 40, 0.15); border-radius: 3px }
+.asset-list::-webkit-scrollbar-track { background: transparent }
+
+.asset-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  background: white;
+  border-radius: var(--radius);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  cursor: pointer;
+}
+.asset-card:hover { border-color: var(--line-strong); background: rgba(10, 22, 40, 0.015) }
+.asset-title { display: flex; align-items: center; gap: 8px }
+.asset-title strong { font-size: 13px; font-weight: 600 }
+.asset-card p { font-size: 11px; color: var(--text-2) }
+
+.dot { width: 10px; height: 10px; display: inline-block; flex-shrink: 0; border-radius: 3px }
+.mini { display: flex; gap: 4px }
+.mini button { padding: 6px 8px; font-size: 12px }
+
+.workspace-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.board-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+/* board 2D */
+.board-wrap {
+  width: 100%;
+  height: calc(100vh - 220px);
+  min-height: 520px;
+  overflow: hidden;
+  padding: 0;
+  background: #f1f3f6;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  position: relative;
+}
+
+.board-pan {
+  position: absolute;
+  left: 0; top: 0;
+  transform-origin: 0 0;
+}
+
+.board {
+  position: relative;
+  border: 2px solid var(--navy);
+  background:
+    linear-gradient(rgba(10, 22, 40, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10, 22, 40, 0.06) 1px, transparent 1px),
+    #fff;
+  background-size: 100px 100px;
+  touch-action: none;
+  user-select: none;
+}
+
+.door, .doorLabel {
+  position: absolute;
+  background: var(--navy);
+  color: #fff;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  padding: 6px 4px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+.doorLabel {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 90px;
+}
+
+.axisLabel {
+  position: absolute;
+  background: white;
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-2);
+  z-index: 4;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+/* casse 2D */
+.machine {
+  position: absolute;
+  outline: 1.5px solid var(--navy);
+  outline-offset: -1.5px;
+  color: white;
+  background: #4a5d7e;
+  cursor: grab;
+  overflow: hidden;
+  border-radius: 0;
+  box-sizing: border-box;
+  border: 0;
+  transition: outline-color 0.12s ease;
+}
+.machine:active { cursor: grabbing }
+.machine.selected {
+  outline-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.18) inset;
+}
+.machine.invalid {
+  outline-color: var(--bad);
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.22) inset;
+}
+.machine.hasStack { background: #2c3a52 }
+.machine strong {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.machine small { display: block; font-size: 9px; opacity: 0.85; font-weight: 400 }
+.assetExtra {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  color: white;
+  opacity: 0.85;
+  line-height: 1.15;
+  margin-top: 2px;
+}
+
+/* rotation handle */
+.rotateHandle {
+  position: absolute;
+  right: -16px;
+  top: -16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid white;
+  background: var(--accent);
+  color: white;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 999;
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+.machine.selected .rotateHandle { display: flex }
+.rotateHandle:hover { background: #1e40af; transform: scale(1.08) }
+
+/* 3D */
+.three-wrap {
+  height: calc(100vh - 220px);
+  min-height: 520px;
+  overflow: hidden;
+  background: #f1f3f6;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  position: relative;
+  cursor: grab;
+}
+.three-wrap:active { cursor: grabbing }
+.three-scene, .container3d {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%;
+  height: 100%;
+}
+.isoSvg text { font-family: inherit }
+.isoCrate { cursor: pointer; transition: opacity .15s }
+.isoCrate:hover { opacity: 0.85 }
+
+/* selected & warnings */
+.selected-panel { display: flex; flex-direction: column; gap: 10px }
+.muted, .note { color: var(--text-2); font-size: 12px }
+.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  border: 1px solid rgba(4, 120, 87, 0.15);
+}
+.warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--bad);
+  font-size: 13px;
+  background: var(--bad-soft);
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(220, 38, 38, 0.15);
+}
+
+/* table */
+.tableWrap {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.tableWrap::-webkit-scrollbar { width: 6px; height: 6px }
+.tableWrap::-webkit-scrollbar-thumb { background: rgba(10, 22, 40, 0.15); border-radius: 3px }
+table { width: 100%; border-collapse: collapse; font-size: 12px }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 9px; text-align: left }
+th {
+  position: sticky;
+  top: 0;
+  background: rgba(10, 22, 40, 0.025);
+  font-weight: 600;
+  color: var(--text-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+tbody tr:hover { background: rgba(10, 22, 40, 0.015) }
+
+.tableInput {
+  width: 100%;
+  min-width: 80px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  font-size: 11px;
+  background: #fff;
+  font-family: inherit;
+}
+.tableInput:focus { outline: 2px solid rgba(29, 78, 216, 0.3); border-color: var(--accent) }
+
+/* status bars */
+.aiNote {
+  margin-top: 8px;
+  background: var(--accent-soft);
+  color: #1e40af;
+  border: 1px solid rgba(29, 78, 216, 0.15);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.precisionNote {
+  margin-top: 8px;
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid rgba(4, 120, 87, 0.15);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.precisionBad {
+  background: var(--bad-soft);
+  color: #991b1b;
+  border-color: rgba(220, 38, 38, 0.15);
+}
+
+/* collapsible */
+.collapsiblePanel .panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.collapseBtn {
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-2);
+}
+.collapseBtn:hover { background: rgba(10, 22, 40, 0.05); color: var(--text) }
+.collapsiblePanel.collapsed .panelBody { display: none }
+.collapsiblePanel.collapsed .panelHeader { margin-bottom: 0 }
+
+/* modal */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 22, 40, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal {
+  width: min(720px, 100%);
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 20px 22px;
+  max-height: 90vh;
+  overflow: auto;
+}
+.modalHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.modalHead h2 { font-size: 16px; font-weight: 600 }
+.field { margin-bottom: 12px }
+.field span {
+  font-size: 11px;
+  color: var(--text-2);
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+/* responsive */
+@media (max-width: 1050px) {
+  .topbar, .workspace-head { flex-direction: column; align-items: stretch }
+  .layout { grid-template-columns: 1fr }
+  .bottom-grid { grid-template-columns: 1fr }
+}
+
+/* print */
+@media print {
+  body { background: white !important; margin: 0 !important; padding: 0 !important }
+  .app > .topbar, .layout, .cloudBar { display: none !important }
+  #printReport { display: block !important; padding: 0; margin: 0 }
+  @page { size: A4 landscape; margin: 10mm }
+  .noPrint { display: none !important }
+}
+
+#printReport {
+  display: none;
+  background: white;
+  color: #111827;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.printHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #111827;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.printHeader h1 { font-size: 22px; margin: 0; letter-spacing: -0.4px; color: #0f172a; font-weight: 700 }
+.printHeader p  { font-size: 10.5px; color: #555; margin: 2px 0 }
+.printHeader .right { text-align: right }
+.printHeader .right b { font-size: 14px; color: #0f172a }
+.printGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.printMetric {
+  border: 1px solid #999;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.printMetric span { display:block; color:#666; font-size: 10px }
+.printMetric b { display: block; font-size: 13px; margin-top: 3px; font-weight: 700 }
+.printSvgWrap {
+  border: 1px solid #333;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: white;
+}
+.printSvgWrap h2, .printTable h2 {
+  font-size: 13px;
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.printSvgWrap svg { width: 100%; height: 70mm; display: block }
+.printTable table { width: 100%; border-collapse: collapse; font-size: 10px }
+.printTable th { background: #f3f4f6; padding: 5px 6px; text-align: left; font-weight: 700; font-size: 10px; border: 1px solid #999 }
+.printTable td { padding: 4px 6px; border: 1px solid #ccc }
+.printEmpty { padding: 14px; text-align: center; color: #888; font-style: italic; font-size: 11px; border: 1px dashed #ccc; border-radius: 4px }
+.printFooter {
+  font-size: 9px;
+  color: #555;
+  text-align: center;
+  border-top: 1px solid #ccc;
+  padding-top: 5px;
+  margin-top: 8px;
+}
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- Cloud bar -->
+<div class="cloudBar">
+  <a href="/dashboard.html" class="cloudBack">
+    <span style="font-size:16px;line-height:1">←</span>
+    <span>Progetti</span>
+  </a>
+  <div class="cloudActions">
+    <span id="cloudStatus" class="cloudStatus">Nuovo progetto</span>
+    <input id="cloudProjectName" placeholder="Nome progetto" class="cloudInput">
+    <button id="cloudSaveBtn" class="cloudPrimary">Salva</button>
+    <button id="cloudShareBtn" class="cloudGhost">Condividi</button>
+    <div class="cloudUserMenu" id="userMenuWrap">
+      <button id="userMenuBtn" class="cloudUserBtn">
+        <span class="cloudAvatar" id="cloudAvatar"></span>
+        <span id="cloudUserEmail" class="cloudUserEmail"></span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="opacity:0.6"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div id="userDropdown" class="cloudDropdown">
+        <div class="cloudDropdownHeader">
+          <div class="cloudDropdownEmail" id="userDropdownEmail"></div>
+        </div>
+        <a href="/dashboard.html" class="cloudDropdownItem">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 3.67 2.67 3 3.5 3h3l1.5 1.5h4.5c.83 0 1.5.67 1.5 1.5v6c0 .83-.67 1.5-1.5 1.5h-9C2.67 13 2 12.33 2 11.5v-7z" stroke="currentColor" stroke-width="1.3"/></svg>
+          Progetti
+        </a>
+        <a href="/team.html" class="cloudDropdownItem">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11.5" cy="6" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M14 12.5c-.5-1.5-1.5-2.5-3-2.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Team
+        </a>
+        <div class="cloudDropdownDivider"></div>
+        <a href="#" id="cloudLogoutBtn" class="cloudDropdownItem cloudDropdownDanger">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9 4V3a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1M7 8h7m0 0l-2.5-2.5M14 8l-2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Logout
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+.cloudBar {
+  background: var(--navy);
+  color: white;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cloudBack {
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.cloudBack:hover { background: rgba(255,255,255,0.08); color: white }
+.cloudActions { display: flex; align-items: center; gap: 10px }
+.cloudStatus { color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 400 }
+.cloudInput {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: white;
+  font-size: 13px;
+  width: 240px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  font-family: inherit;
+}
+.cloudInput::placeholder { color: rgba(255,255,255,0.4) }
+.cloudInput:focus {
+  outline: none;
+  border-color: rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.1);
+  box-shadow: none;
+}
+.cloudPrimary {
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: white;
+  border: none;
+  color: var(--navy);
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.12s ease, transform 0.05s ease;
+  font-family: inherit;
+}
+.cloudPrimary:hover { background: rgba(255,255,255,0.92) }
+.cloudPrimary:active { transform: scale(0.97) }
+.cloudGhost {
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.18);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+  font-family: inherit;
+}
+.cloudGhost:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.3) }
+.cloudUserMenu { position: relative }
+.cloudUserBtn {
+  padding: 5px 10px 5px 5px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+  font-family: inherit;
+}
+.cloudUserBtn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.2) }
+.cloudAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+.cloudUserEmail {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.cloudDropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: white;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 220px;
+  z-index: 999;
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  font-family: inherit;
+}
+.cloudDropdownHeader {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.cloudDropdownEmail {
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 500;
+  word-break: break-all;
+}
+.cloudDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: background-color 0.12s ease;
+}
+.cloudDropdownItem:hover { background: rgba(10, 22, 40, 0.04) }
+.cloudDropdownItem svg { color: var(--text-2) }
+.cloudDropdownDivider { height: 1px; background: var(--line); margin: 4px 0 }
+.cloudDropdownDanger { color: var(--bad) }
+.cloudDropdownDanger svg { color: var(--bad) }
+.cloudDropdownDanger:hover { background: var(--bad-soft) }
+</style>
+<script>
+document.getElementById("userMenuBtn").addEventListener("click", e => {
+  e.stopPropagation();
+  const dd = document.getElementById("userDropdown");
+  dd.style.display = dd.style.display === "none" || !dd.style.display ? "block" : "none";
+});
+document.addEventListener("click", () => { document.getElementById("userDropdown").style.display = "none"; });
+</script>
+
+<div id="printReport"></div>
+
+<!-- Modal modifica asset -->
+<div class="modalBackdrop" id="assetModal">
+  <div class="modal">
+    <div class="modalHead">
+      <h2>Modifica asset</h2>
+      <button id="closeModal">✕</button>
+    </div>
+    <input type="hidden" id="editAssetId">
+    <div class="grid3">
+      <label class="field"><span>Serie</span><input id="editSeries"></label>
+      <label class="field"><span>Modello</span><input id="editModel"></label>
+      <label class="field"><span>Pollici</span><input id="editInches"></label>
+    </div>
+    <div class="grid3" style="margin-top:8px">
+      <label class="field"><span>Lunghezza cassa mm</span><input id="editLength" type="number"></label>
+      <label class="field"><span>Larghezza cassa mm</span><input id="editWidth" type="number"></label>
+      <label class="field"><span>Altezza cassa mm</span><input id="editHeight" type="number"></label>
+    </div>
+    <div class="grid2" style="margin-top:8px">
+      <label class="field"><span>Peso cassa kg</span><input id="editWeight" type="number"></label>
+      <label class="field"><span>Colore</span><input id="editColor" type="color"></label>
+    </div>
+    <div class="actions" style="justify-content:flex-end;margin-top:14px">
+      <button id="deleteAssetModal" class="dangerBtn">Elimina asset</button>
+      <button id="saveAssetModal" class="goodBtn">Salva modifiche</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+<header class="topbar">
+  <div class="brand">
+    <svg class="brandLogo" width="44" height="44" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2" y="2" width="36" height="36" rx="6" fill="#0f172a"/>
+      <rect x="7" y="11" width="26" height="18" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+      <rect x="9"  y="13" width="9"  height="6" fill="#fbbf24"/>
+      <rect x="19" y="13" width="6"  height="6" fill="#fbbf24" opacity="0.85"/>
+      <rect x="26" y="13" width="6"  height="6" fill="#fbbf24" opacity="0.7"/>
+      <rect x="9"  y="20" width="6"  height="8" fill="#fbbf24" opacity="0.75"/>
+      <rect x="16" y="20" width="9"  height="4" fill="#fbbf24" opacity="0.85"/>
+      <rect x="16" y="25" width="4"  height="3" fill="#fbbf24" opacity="0.6"/>
+      <rect x="21" y="25" width="4"  height="3" fill="#fbbf24" opacity="0.6"/>
+      <rect x="26" y="20" width="6"  height="8" fill="#fbbf24" opacity="0.9"/>
+    </svg>
+    <div>
+      <h1>Container Loading Planner</h1>
+      <p>Pianifica layout, baricentro e distribuzione assi · <kbd>R</kbd> ruota · <kbd>↑↓←→</kbd> sposta · <kbd>⌘Z</kbd> undo · <kbd>T</kbd> 2D/3D · <kbd>Canc</kbd> elimina</p>
+    </div>
+  </div>
+  <div class="actions">
+    <div class="btnGroup">
+      <button id="undoBtn" class="iconBtn" title="Annulla (Ctrl+Z)" aria-label="Annulla">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 7l-2-2 2-2M2 5h7a4 4 0 0 1 0 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="redoBtn" class="iconBtn" title="Ripeti (Ctrl+Shift+Z)" aria-label="Ripeti">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M12 7l2-2-2-2M14 5H7a4 4 0 0 0 0 8h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="btnGroup">
+      <button id="btn2d" class="segBtn active">2D</button>
+      <button id="btnSide" class="segBtn">Laterale</button>
+      <button id="btn3d" class="segBtn">3D</button>
+    </div>
+    <button id="resetViewBtn" class="ghost">Reset vista</button>
+    <button id="pdfBtn">Esporta PDF</button>
+    <button id="packBtn" class="primary">Packing list</button>
+    <button id="exportBtn" class="ghost">Esporta JSON</button>
+    <label class="fileBtn ghost">Importa<input id="importFile" type="file" accept="application/json" hidden></label>
+  </div>
+</header>
+
+<style>
+kbd {
+  background: rgba(10, 22, 40, 0.05);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-family: -apple-system, "SF Mono", monospace;
+  font-weight: 500;
+  color: var(--text-2);
+  margin: 0 1px;
+}
+.btnGroup {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: white;
+}
+.btnGroup button {
+  border: none;
+  border-radius: 0;
+  padding: 7px 12px;
+  background: white;
+  border-right: 1px solid var(--line);
+}
+.btnGroup button:last-child { border-right: none }
+.btnGroup button:hover { background: rgba(10, 22, 40, 0.03) }
+.btnGroup .active, .btnGroup .segBtn.active {
+  background: var(--navy);
+  color: white;
+}
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.segBtn { font-weight: 500; padding: 7px 14px }
+</style>
+
+<section class="layout">
+<aside class="sidebar">
+
+  <section class="panel collapsiblePanel" data-panel="projectInfo">
+    <div class="panelHeader"><h2>Progetto layout</h2><button class="collapseBtn" data-collapse="projectInfo" title="Comprimi/espandi">−</button></div>
+    <div class="panelBody">
+      <label class="field"><span>Nome progetto / prova di disposizione</span><input id="projectNameInput" placeholder="Es. Spedizione Paramalhas - 40ft - Prova 1"></label>
+      <p class="muted" style="margin-top:8px">Il nome verrà inserito nel PDF e usato come nome del file esportato.</p>
+    </div>
+  </section>
+
+  <section class="panel collapsiblePanel" data-panel="container">
+    <div class="panelHeader"><h2 data-i18n="app.cargo_space">Spazio di carico</h2><button class="collapseBtn" data-collapse="container" title="Comprimi/espandi">−</button></div>
+    <div class="panelBody">
+      <div id="cargoTypeChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+        <button class="cargoChip active" data-cat="container" data-i18n="app.cargo_container">Container</button>
+        <button class="cargoChip" data-cat="truck" data-i18n="app.cargo_truck">Truck</button>
+        <button class="cargoChip" data-cat="aircraft" data-i18n="app.cargo_aircraft">Air cargo</button>
+        <button class="cargoChip" data-cat="custom" data-i18n="app.cargo_custom">Custom</button>
+      </div>
+      <select id="containerSelect"></select>
+      <div id="customDimsBox" style="display:none;margin-top:8px;padding:10px;background:#f9fafb;border-radius:8px">
+        <p class="muted" style="margin:0 0 6px;font-size:11px">Personalizza dimensioni</p>
+        <div class="grid2">
+          <label class="number"><span>Nome</span><input id="customDimName" type="text" placeholder="My truck"></label>
+          <label class="number"><span>Lunghezza mm</span><input id="customDimLength" type="number"></label>
+          <label class="number"><span>Larghezza mm</span><input id="customDimWidth" type="number"></label>
+          <label class="number"><span>Altezza mm</span><input id="customDimHeight" type="number"></label>
+          <label class="number"><span>Peso utile kg</span><input id="customDimMaxWeight" type="number"></label>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px">
+        <span class="muted" data-i18n="app.units">Unità</span>
+        <select id="unitsSelect" style="flex:1;padding:6px">
+          <option value="metric" data-i18n="app.units_metric">Metric (mm/kg)</option>
+          <option value="imperial" data-i18n="app.units_imperial">Imperial (in/lb)</option>
+        </select>
+      </div>
+      <div class="metrics" style="margin-top:8px">
+        <div class="info"><span>Lunghezza interna</span><strong id="cLength"></strong></div>
+        <div class="info"><span>Larghezza interna</span><strong id="cWidth"></strong></div>
+        <div class="info"><span>Altezza interna</span><strong id="cHeight"></strong></div>
+        <div class="info"><span>Peso utile stimato</span><strong id="cWeight"></strong></div>
+      </div>
+      <div class="summary">
+        <div><span>Area pavimento usata</span><strong id="areaPct"></strong></div>
+        <div><span>Peso totale casse</span><strong id="totalWeight"></strong></div>
+        <div><span>Macchine inserite</span><strong id="itemCount"></strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel collapsiblePanel" data-panel="physics">
+    <div class="panelHeader"><h2>Baricentro &amp; assi</h2><button class="collapseBtn" data-collapse="physics" title="Comprimi/espandi">−</button></div>
+    <div class="panelBody">
+      <div class="grid3">
+        <div class="info"><span>Baricentro X</span><strong id="cogX">—</strong></div>
+        <div class="info"><span>Baricentro Y</span><strong id="cogY">—</strong></div>
+        <div class="info"><span>Baricentro Z</span><strong id="cogZ">—</strong></div>
+      </div>
+      <div class="grid2" style="margin-top:8px">
+        <div class="info"><span>Asse anteriore</span><strong id="axleFront">—</strong></div>
+        <div class="info"><span>Asse posteriore</span><strong id="axleRear">—</strong></div>
+      </div>
+      <p class="note" style="margin-top:8px">Tolleranze: X ±10% · Y ±5% · Z &lt; 60% altezza.</p>
+    </div>
+  </section>
+
+  <section class="panel collapsiblePanel" data-panel="customAsset">
+    <div class="panelHeader"><h2>Aggiungi asset personalizzato</h2><button class="collapseBtn" data-collapse="customAsset" title="Comprimi/espandi">−</button></div>
+    <div class="panelBody">
+      <input id="assetName" placeholder="Nome asset / macchina">
+      <div class="grid2" style="margin-top:8px">
+        <label><span class="small">Modello</span><input id="assetModel" placeholder="es. F30-2"></label>
+        <label><span class="small">Pollici "</span><input id="assetInches" placeholder="es. 100"></label>
+      </div>
+      <div class="grid2" style="margin-top:8px">
+        <label class="number"><span>Lunghezza cassa mm</span><input id="assetLength" type="number" value="3000"></label>
+        <label class="number"><span>Larghezza cassa mm</span><input id="assetWidth" type="number" value="1000"></label>
+        <label class="number"><span>Altezza cassa mm</span><input id="assetHeight" type="number" value="1750"></label>
+        <label class="number"><span>Peso cassa kg</span><input id="assetWeight" type="number" value="1500"></label>
+      </div>
+      <div class="grid2" style="margin-top:8px">
+        <label><span class="small">Serie</span><input id="assetSeries" value="CUSTOM"></label>
+        <label><span class="small">Colore</span><input id="assetColor" type="color" value="#1d4ed8"></label>
+      </div>
+      <button id="saveAsset" class="primary" style="width:100%;justify-content:center;margin-top:8px">Salva asset in libreria</button>
+    </div>
+  </section>
+
+  <section class="panel collapsiblePanel" data-panel="library">
+    <div class="panelHeader"><h2>Libreria asset</h2><button class="collapseBtn" data-collapse="library" title="Comprimi/espandi">−</button></div>
+    <div class="panelBody">
+      <p class="note" style="margin-bottom:8px">Libreria delle casse personalizzabile. Modifica un asset col tasto ✎ per impostare se è impilabile.</p>
+      <div class="libraryTools">
+        <input id="searchAsset" placeholder="Cerca modello, serie, pollici...">
+        <select id="seriesFilter" style="max-width:145px"></select>
+      </div>
+      <div class="actions" style="margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <button id="resetAssetsBtn">↺ Ripristina libreria</button>
+        <label class="fileBtn" style="border:1px solid #d4d4d8;background:white;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          📥 Importa CSV/Excel
+          <input id="importAssetsFile" type="file" accept=".csv,.xlsx,.xls" hidden>
+        </label>
+        <button id="downloadTemplateBtn" title="Scarica template CSV">📄 Template</button>
+      </div>
+      <div id="importStatus" style="display:none;font-size:11px;padding:6px 8px;border-radius:6px;margin-bottom:8px"></div>
+      <div id="assetList" class="asset-list"></div>
+    </div>
+  </section>
+</aside>
+
+<div class="layoutResizer" id="layoutResizer" title="Trascina per ridimensionare"></div>
+
+<main class="workspace">
+  <section class="panel">
+    <div class="workspace-head">
+      <div>
+        <h2>Layout container</h2>
+        <p>Trascina le casse · Tasto <b>R</b> o handle ↻ per ruotare · <b>Shift</b> per snap 50mm · L'ottimizzatore tenta anche l'impilamento delle casse leggere.</p>
+      </div>
+      <div class="actions">
+        <button id="autoPackBtn" class="primary">⚡ Ottimizzazione automatica</button>
+        <button id="clearBtn">🗑 Svuota</button>
+        <button id="rotateBtn">↻ Ruota 90°</button>
+        <button id="rotateAllBtn">⟳ Ruota tutte</button>
+        <button id="precisionFixBtn">▣ Blocca dentro</button>
+      </div>
+    </div>
+    <div class="board-toolbar">
+      <div class="actions">
+        <button id="zoomOutBtn">− Zoom</button>
+        <button id="zoomInBtn">＋ Zoom</button>
+        <button id="fitBtn">Adatta</button>
+        <button id="panModeBtn">✥ Pan 2D</button>
+      </div>
+      <div class="actions" id="threeControls">
+        <button id="rotLeftBtn">⟲ Ruota 3D</button>
+        <button id="rotRightBtn">⟳ Ruota 3D</button>
+        <button id="tiltUpBtn">＋ Zoom 3D</button>
+        <button id="tiltDownBtn">− Zoom 3D</button>
+      </div>
+    </div>
+    <div id="optimizerStatus" class="aiNote" style="display:none"></div>
+    <div id="precisionStatus" class="precisionNote" style="display:none"></div>
+    <div id="view2d" class="board-wrap">
+      <div id="boardPan" class="board-pan">
+        <div id="board" class="board">
+          <div class="axisLabel" style="right:8px;bottom:8px">vista dall'alto</div>
+        </div>
+        <div class="doorLabel">PORTA</div>
+      </div>
+    </div>
+    <div id="view3d" class="three-wrap" style="display:none">
+      <div id="threeScene" class="three-scene">
+        <div id="container3d" class="container3d"></div>
+      </div>
+    </div>
+    <div id="viewSide" class="board-wrap" style="display:none">
+      <div style="padding:12px 16px;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0">
+        Vista laterale — proiezione X-Z (lunghezza × altezza). Mostra le pile di casse.
+      </div>
+      <svg id="sideSvg" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:calc(100% - 50px);background:white"></svg>
+    </div>
+  </section>
+
+  <div class="bottom-grid">
+    <section class="panel">
+      <h2>Elemento selezionato</h2>
+      <div id="selectedPanel" class="selected-panel"><p class="muted">Seleziona una cassa nel layout.</p></div>
+    </section>
+    <section class="panel">
+      <h2>Controlli automatici</h2>
+      <div id="warnings"></div>
+      <p class="note" style="margin-top:9px">Verifica finale a carico dello spedizioniere: fissaggi, baricentro effettivo della cassa (non sempre nel centro geometrico), portata pavimento, blocchi anti-movimento, istruzioni doganali.</p>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Distinta carico</h2>
+    <div class="tableWrap">
+      <table>
+        <thead><tr><th>#</th><th>Serie</th><th>Modello</th><th>Pollici</th><th>Matricola</th><th>Finezza</th><th>Cassa mm</th><th>Peso kg</th><th>X</th><th>Y</th><th>Z</th><th>Rot</th></tr></thead>
+        <tbody id="loadTable"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</section>
+</div>
+
+<script>
+/* Container Loading Planner — bundle single-file generato. */
+(function(){
+'use strict';
+const __M = window.__M = {};
+
+/* ====== js/state.js ====== */
+(function(){
+/* ============================================================================
+   state.js — modello dati centrale
+   ----------------------------------------------------------------------------
+   Cambiamenti chiave rispetto a V6.2:
+   - length/width sono SEMPRE le dimensioni fisiche della cassa (immutabili
+     dopo il piazzamento). La rotazione è codificata SOLO in `rotation` (0|90).
+   - Ingombro effettivo si ottiene con footprint(item) → {l, w}.
+   - Helper centralizzati: nessun altro modulo accede direttamente alle
+     dimensioni "ruotate".
+   - Undo/redo basato su snapshot del solo array `placed` (leggero).
+   ========================================================================== */
+const CONTAINERS = {
+  // Container marittimi
+  "20ft":   { name: "20ft Container",        type: "container", length: 5898,  width: 2352, height: 2393, maxWeight: 28280 },
+  "40ft":   { name: "40ft Container",        type: "container", length: 12032, width: 2352, height: 2393, maxWeight: 26990 },
+  "40hc":   { name: "40ft High Cube",        type: "container", length: 12032, width: 2350, height: 2700, maxWeight: 28600 },
+  "45hc":   { name: "45ft High Cube",        type: "container", length: 13556, width: 2352, height: 2700, maxWeight: 27600 },
+  // Camion
+  "truck_eu_tautliner":   { name: "EU Tautliner 13.6m", type: "truck", length: 13600, width: 2480, height: 2700, maxWeight: 24000 },
+  "truck_eu_jumbo":       { name: "EU Jumbo 13.6m",     type: "truck", length: 13600, width: 2480, height: 3000, maxWeight: 24000 },
+  "truck_us_53ft":        { name: "US 53ft trailer",    type: "truck", length: 16154, width: 2591, height: 2743, maxWeight: 19958 },
+  "truck_solo":           { name: "Solo 7.2m",          type: "truck", length: 7200,  width: 2450, height: 2500, maxWeight: 8000 },
+  // Cargo aereo (ULD)
+  "uld_ake":  { name: "ULD AKE (LD-3)",  type: "aircraft", length: 1562, width: 1534, height: 1626, maxWeight: 1588 },
+  "uld_pmc":  { name: "ULD PMC (96in)",  type: "aircraft", length: 3175, width: 2235, height: 1626, maxWeight: 6804 },
+  "uld_ala":  { name: "ULD ALA (LD-7)",  type: "aircraft", length: 3175, width: 2235, height: 1626, maxWeight: 4626 },
+  // Custom
+  "custom":   { name: "Custom",          type: "custom",   length: 10000, width: 2400, height: 2500, maxWeight: 20000 }
+};
+const STORAGE_KEY = "containerLoadingPlannerV9";
+
+/* ---------------------------------------------------------- modello in-memory */
+const state = {
+  userKey: null,       // identificativo utente per scope localStorage
+  containerKey: "40ft",
+  customDims: { length: 10000, width: 2400, height: 2500, maxWeight: 20000, name: "Custom space" },
+  units: "metric",   // 'metric' o 'imperial'
+  projectName: "",
+  assets: [],          // libreria
+  placed: [],          // casse posizionate
+  selectedId: null,
+  virtualWalls: [],    // array di { id, x } posizioni X per pareti virtuali
+
+  // viewport 2D
+  zoom: 1,
+  pan: { x: 0, y: 0 },
+  panMode: false,
+
+  // viewport 3D
+  three: { rotZ: -32, pitch: 0.62, zoom: 1, x: 0, y: 0 },
+
+  // undo/redo
+  history: [],
+  future: [],
+
+  // pannelli collassati
+  collapsed: {}
+};
+
+/** Restituisce il container effettivo, applicando customDims se containerKey === 'custom'. */
+function activeContainer() {
+  const c = CONTAINERS[state.containerKey];
+  if (!c) return CONTAINERS["40ft"];
+  if (c.type === "custom" && state.customDims) {
+    return {
+      ...c,
+      length: state.customDims.length || c.length,
+      width:  state.customDims.width  || c.width,
+      height: state.customDims.height || c.height,
+      maxWeight: state.customDims.maxWeight || c.maxWeight,
+      name: state.customDims.name || c.name
+    };
+  }
+  return c;
+}
+
+/* ---------------------------------------------------------- ingombro orientato */
+/** Ritorna ingombro footprint (l = lungo asse X container, w = lungo asse Y). */
+function footprint(item) {
+  if ((item.rotation || 0) % 180 === 90) {
+    return { l: item.width, w: item.length };
+  }
+  return { l: item.length, w: item.width };
+}
+
+/** AABB normalizzato per controlli collisione/contenimento. */
+function aabb(item) {
+  const f = footprint(item);
+  return { x1: item.x, y1: item.y, x2: item.x + f.l, y2: item.y + f.w };
+}
+
+/** Due item si sovrappongono? Tolleranza 1mm per evitare falsi positivi su rounding. */
+function overlaps(a, b, tol = 1) {
+  const A = aabb(a), B = aabb(b);
+  return !(A.x2 - tol <= B.x1 || B.x2 - tol <= A.x1 ||
+           A.y2 - tol <= B.y1 || B.y2 - tol <= A.y1);
+}
+
+/** Item è completamente dentro il container? */
+function isInside(item, container) {
+  const f = footprint(item);
+  return item.x >= 0 && item.y >= 0 &&
+         item.x + f.l <= container.length + 0.5 &&
+         item.y + f.w <= container.width + 0.5;
+}
+
+/* ---------------------------------------------------------- ID & utilità */
+function uid() {
+  return "id_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+/* ---------------------------------------------------------- persistenza */
+function save() {
+  const payload = {
+    userKey: state.userKey || null,
+    containerKey: state.containerKey,
+    projectName: state.projectName,
+    assets: state.assets,
+    placed: state.placed,
+    collapsed: state.collapsed
+  };
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }
+  catch (e) { console.warn("save fallito", e); }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    // Reset se utente diverso
+    if (state.userKey && data.userKey && data.userKey !== state.userKey) {
+      try { localStorage.removeItem(STORAGE_KEY); } catch(_) {}
+      return false;
+    }
+    state.containerKey = data.containerKey || "40ft";
+    state.projectName  = data.projectName || "";
+    state.assets       = Array.isArray(data.assets) ? data.assets : [];
+    state.placed       = Array.isArray(data.placed) ? data.placed : [];
+    state.collapsed    = data.collapsed || {};
+    state.placed.forEach(p => { p.rotation = p.rotation || 0; });
+    return true;
+  } catch (e) { console.warn("load fallito", e); return false; }
+}
+
+/* ---------------------------------------------------------- undo/redo */
+const MAX_HISTORY = 40;
+function snapshot() {
+  // catturo solo ciò che cambia con le azioni utente
+  return JSON.stringify({
+    placed: state.placed,
+    selectedId: state.selectedId,
+    containerKey: state.containerKey
+  });
+}
+function pushHistory() {
+  state.history.push(snapshot());
+  if (state.history.length > MAX_HISTORY) state.history.shift();
+  state.future.length = 0;  // ramificazione: il futuro si invalida
+}
+function undo() {
+  if (!state.history.length) return false;
+  state.future.push(snapshot());
+  applySnapshot(state.history.pop());
+  return true;
+}
+function redo() {
+  if (!state.future.length) return false;
+  state.history.push(snapshot());
+  applySnapshot(state.future.pop());
+  return true;
+}
+
+function applySnapshot(snap) {
+  const data = JSON.parse(snap);
+  state.placed = data.placed;
+  state.selectedId = data.selectedId;
+  state.containerKey = data.containerKey;
+}
+
+/* ---------------------------------------------------------- mutazioni placed */
+function placeAsset(asset) {
+  pushHistory();
+  const item = {
+    ...asset,
+    id: uid(),
+    assetId: asset.id,
+    x: 0, y: 0, z: 0,
+    rotation: 0,
+    stackable: asset.stackable !== false,
+    noStackOnTop: asset.noStackOnTop === true,    // non si può mettere niente sopra
+    noTilt: asset.noTilt === true,                 // non ruotabile in piedi (no scambio dimensioni height/width)
+    noRotate: asset.noRotate === true,             // non ruotabile in pianta (rotation sempre 0)
+    priority: Number(asset.priority || 0),         // 0 = nessuna, 1 = prima destinazione (vicino porta), 2..N
+    stackedOn: null,
+    serialNumber: "",
+    gauge: ""
+  };
+  const c = activeContainer();
+  item.x = findFirstFreeX(item, c);
+  state.placed.push(item);
+  state.selectedId = item.id;
+  save();
+  return item;
+}
+
+function findFirstFreeX(item, container) {
+  const f = footprint(item);
+  let x = 0;
+  while (x + f.l <= container.length) {
+    const test = { ...item, x, y: 0 };
+    if (!state.placed.some(p => overlaps(test, p))) return x;
+    x += 50;
+  }
+  return 0;
+}
+function removePlaced(id) {
+  pushHistory();
+  state.placed = state.placed.filter(p => p.id !== id);
+  if (state.selectedId === id) state.selectedId = null;
+  save();
+}
+function rotatePlaced(id, deltaDeg = 90) {
+  const p = state.placed.find(x => x.id === id);
+  if (!p) return false;
+  pushHistory();
+  p.rotation = ((p.rotation || 0) + deltaDeg + 360) % 360;
+  // Solo 0 e 90 hanno significato per il packing 2D (180=0, 270=90 visivamente)
+  p.rotation = p.rotation % 180;
+
+  // riallinea origine se la nuova orientazione esce dal container
+  const c = activeContainer();
+  const f = footprint(p);
+  p.x = clamp(p.x, 0, Math.max(0, c.length - f.l));
+  p.y = clamp(p.y, 0, Math.max(0, c.width  - f.w));
+  save();
+  return true;
+}
+function movePlaced(id, dx, dy) {
+  const p = state.placed.find(x => x.id === id);
+  if (!p) return;
+  pushHistory();
+  const c = activeContainer();
+  const f = footprint(p);
+  p.x = clamp(p.x + dx, 0, Math.max(0, c.length - f.l));
+  p.y = clamp(p.y + dy, 0, Math.max(0, c.width  - f.w));
+  save();
+}
+function setPlacedPosition(id, x, y) {
+  const p = state.placed.find(x => x.id === id);
+  if (!p) return;
+  pushHistory();
+  const c = activeContainer();
+  const f = footprint(p);
+  p.x = clamp(x, 0, Math.max(0, c.length - f.l));
+  p.y = clamp(y, 0, Math.max(0, c.width  - f.w));
+  save();
+}
+function updatePlacedField(id, field, value) {
+  const p = state.placed.find(x => x.id === id);
+  if (!p) return;
+  pushHistory();
+  p[field] = value;
+  save();
+}
+function clearAll() {
+  if (!state.placed.length) return;
+  pushHistory();
+  state.placed = [];
+  state.selectedId = null;
+  save();
+}
+
+
+__M.CONTAINERS = CONTAINERS;
+__M.STORAGE_KEY = STORAGE_KEY;
+__M.state = state;
+__M.footprint = footprint;
+__M.activeContainer = activeContainer;
+__M.aabb = aabb;
+__M.overlaps = overlaps;
+__M.isInside = isInside;
+__M.uid = uid;
+__M.clamp = clamp;
+__M.save = save;
+__M.load = load;
+__M.snapshot = snapshot;
+__M.pushHistory = pushHistory;
+__M.undo = undo;
+__M.redo = redo;
+__M.placeAsset = placeAsset;
+__M.removePlaced = removePlaced;
+__M.rotatePlaced = rotatePlaced;
+__M.movePlaced = movePlaced;
+__M.setPlacedPosition = setPlacedPosition;
+__M.updatePlacedField = updatePlacedField;
+__M.clearAll = clearAll;
+
+})();
+
+/* ====== js/library.js ====== */
+(function(){
+/* ============================================================================
+   library.js — libreria asset di esempio
+   ----------------------------------------------------------------------------
+   Estratta dalla V6.2 V5.7 (documento dimensioni casse 20260505154430531.pdf).
+   Aggiunta proprietà `stackable` derivata euristicamente:
+   - cassette piccole/leggere (<= 200 kg E altezza <= 1000 mm) sono stackable;
+     tipicamente: alimentatori, JCQ, complementi.
+   - tutto il resto (macchine pesanti) è stackable: false.
+   L'utente può cambiare questo flag dall'editor asset.
+   ========================================================================== */
+
+const RAW_ASSETS = [
+  { "series": "PALLET", "model": "Pallet EUR-EPAL", "name": "Pallet EUR 80×120", "length": 1200, "width": 800,  "height": 144,  "weight": 25,   "color": "#94a3b8" },
+  { "series": "PALLET", "model": "Pallet ISO",     "name": "Pallet ISO 100×120", "length": 1200, "width": 1000, "height": 150, "weight": 30,   "color": "#94a3b8" },
+  { "series": "CASSA",  "model": "Cassa piccola",  "name": "Cassa S 1000×800",   "length": 1000, "width": 800,  "height": 900,  "weight": 200,  "color": "#64748b" },
+  { "series": "CASSA",  "model": "Cassa media",    "name": "Cassa M 2000×1000",  "length": 2000, "width": 1000, "height": 1200, "weight": 600,  "color": "#475569" },
+  { "series": "CASSA",  "model": "Cassa grande",   "name": "Cassa L 3000×1200",  "length": 3000, "width": 1200, "height": 1500, "weight": 1200, "color": "#334155" },
+  { "series": "MACCHINARIO", "model": "Macchinario", "name": "Macchinario 3500×1500", "length": 3500, "width": 1500, "height": 2000, "weight": 2500, "color": "#1d4ed8" }
+];
+
+function deriveStackable(a) {
+  // Euristica conservativa: solo casse leggere e basse sono impilabili by default.
+  return (a.weight || 0) <= 200 && (a.height || 0) <= 1000;
+}
+
+function deriveId(a) {
+  if (a.id) return a.id;
+  const seriesPart = (a.series || "").replace(/[^A-Za-z0-9]+/g, "_");
+  const modelPart  = (a.model  || "").replace(/[^A-Za-z0-9]+/g, "_");
+  const inchPart   = (a.inches || "").replace(/[^A-Za-z0-9]+/g, "");
+  return `${seriesPart}-${modelPart}-${inchPart}in`;
+}
+
+function deriveName(a) {
+  if (a.name) return a.name;
+  return `${a.model || "?"} ${a.inches || ""}`.trim();
+}
+const DEFAULT_ASSETS = RAW_ASSETS.map(a => ({
+  ...a,
+  id: deriveId(a),
+  name: deriveName(a),
+  stackable: a.stackable !== undefined ? a.stackable : deriveStackable(a),
+  maxStackWeight: a.maxStackWeight || (a.weight ? Math.round(a.weight * 2) : 1000)
+}));
+function findAssetById(assets, id) {
+  return assets.find(a => a.id === id);
+}
+function uniqueSeries(assets) {
+  const set = new Set(assets.map(a => a.series).filter(Boolean));
+  return [...set].sort();
+}
+
+
+__M.DEFAULT_ASSETS = DEFAULT_ASSETS;
+__M.findAssetById = findAssetById;
+__M.uniqueSeries = uniqueSeries;
+
+})();
+
+/* ====== js/physics.js ====== */
+(function(){
+/* ============================================================================
+   physics.js — calcoli fisici sul carico
+   ----------------------------------------------------------------------------
+   Cose che lo spedizioniere/ufficio sicurezza vuole vedere:
+     1) Centro di gravità (CoG) globale: X, Y, Z relativi al pavimento porta-fondo.
+     2) Scostamento del CoG dal centro geometrico del container.
+        - X (longitudinale): tolleranza tipica IMO/ISO ±10% della lunghezza.
+        - Y (trasversale):   tolleranza tipica ±5% della larghezza.
+        - Z (verticale):     soglia di attenzione > 60% dell'altezza.
+     3) Carico distribuito sui due assi del container (assi a 1/4 e 3/4).
+        Stima a trave appoggiata: somma reazioni vincolari.
+     4) Carico per metro lineare lungo X (per carico massimo pavimento).
+   ----------------------------------------------------------------------------
+   Tolleranze prese da pratica spedizione (non da norma). Sono ragionevoli per
+   un primo controllo interno; la validazione finale resta dello spedizioniere.
+   ========================================================================== */
+
+const { footprint } = __M;
+const TOLERANCES = {
+  cogXPct: 0.10,   // ±10% della lunghezza
+  cogYPct: 0.05,   // ±5%  della larghezza
+  cogZRatio: 0.60, // attenzione se CoG_z / H > 60%
+  // capacità assi (kg) - stima conservativa per container 40ft standard
+  axleCapacityKg: 14000,  // metà del payload nominale, indicativo
+};
+
+/* ---------------------------------------------------------- baricentro */
+function centerOfGravity(items) {
+  // ogni cassa: massa concentrata nel centro del proprio AABB 3D
+  // x,y = origine pianta; z = quota base (0 a terra, height-base se impilata)
+  let M = 0, Mx = 0, My = 0, Mz = 0;
+  for (const p of items) {
+    const m = Number(p.weight) || 0;
+    if (m <= 0) continue;
+    const f = footprint(p);
+    const cx = p.x + f.l / 2;
+    const cy = p.y + f.w / 2;
+    const cz = (p.z || 0) + (p.height || 0) / 2;
+    M  += m;
+    Mx += m * cx;
+    My += m * cy;
+    Mz += m * cz;
+  }
+  if (M === 0) return { x: 0, y: 0, z: 0, mass: 0 };
+  return { x: Mx / M, y: My / M, z: Mz / M, mass: M };
+}
+
+/* ---------------------------------------------------------- valutazione CoG */
+function evaluateCog(cog, container) {
+  const cx = container.length / 2;
+  const cy = container.width  / 2;
+  const offX = cog.x - cx;
+  const offY = cog.y - cy;
+  const offXPct = container.length > 0 ? offX / container.length : 0;
+  const offYPct = container.width  > 0 ? offY / container.width  : 0;
+  const zRatio = container.height > 0 ? cog.z / container.height : 0;
+
+  const issues = [];
+  if (Math.abs(offXPct) > TOLERANCES.cogXPct)
+    issues.push(`Baricentro longitudinale fuori tolleranza: ${(offXPct*100).toFixed(1)}% (limite ±${TOLERANCES.cogXPct*100}%)`);
+  if (Math.abs(offYPct) > TOLERANCES.cogYPct)
+    issues.push(`Baricentro trasversale fuori tolleranza: ${(offYPct*100).toFixed(1)}% (limite ±${TOLERANCES.cogYPct*100}%)`);
+  if (zRatio > TOLERANCES.cogZRatio)
+    issues.push(`Baricentro verticale alto: ${(zRatio*100).toFixed(0)}% dell'altezza (attenzione > ${TOLERANCES.cogZRatio*100}%)`);
+
+  return { offX, offY, offXPct, offYPct, zRatio, issues };
+}
+
+/* ---------------------------------------------------------- assi (trave) */
+/* Modello: container = trave appoggiata su due assi posti a frazione kFront e
+   kRear della lunghezza dalla parete porta. Per default: 0.25 e 0.75 (assi
+   tipici a circa metà di ogni metà). Reazioni:
+       Rfront = Σ m_i · (kRear  - x_i/L) / (kRear - kFront)
+       Rrear  = Σ m_i · (x_i/L  - kFront) / (kRear - kFront)
+   Con x_i = baricentro X della cassa i. */
+function axleLoads(items, container, kFront = 0.25, kRear = 0.75) {
+  const L = container.length || 1;
+  const span = kRear - kFront;
+  let Rf = 0, Rr = 0;
+  for (const p of items) {
+    const m = Number(p.weight) || 0;
+    if (m <= 0) continue;
+    const f = footprint(p);
+    const xRel = (p.x + f.l / 2) / L;
+    Rf += m * (kRear - xRel) / span;
+    Rr += m * (xRel - kFront) / span;
+  }
+  return {
+    front: Math.max(0, Rf),
+    rear:  Math.max(0, Rr),
+    frontPosM: kFront * L / 1000,
+    rearPosM:  kRear  * L / 1000
+  };
+}
+
+/* ---------------------------------------------------------- carico lineare */
+/* Suddivide il container in N strisce trasversali e somma il peso che insiste
+   su ciascuna. Utile per individuare zone di concentrazione di carico. */
+function linearLoadProfile(items, container, slices = 24) {
+  const L = container.length || 1;
+  const sliceLen = L / slices;
+  const profile = new Array(slices).fill(0);
+  for (const p of items) {
+    const m = Number(p.weight) || 0;
+    if (m <= 0) continue;
+    const f = footprint(p);
+    // distribuisco m proporzionalmente sulle slice coperte da [p.x, p.x+f.l]
+    const xa = p.x, xb = p.x + f.l;
+    for (let i = 0; i < slices; i++) {
+      const sa = i * sliceLen, sb = (i + 1) * sliceLen;
+      const ov = Math.max(0, Math.min(xb, sb) - Math.max(xa, sa));
+      if (ov > 0) profile[i] += m * (ov / f.l);
+    }
+  }
+  return { profile, sliceLengthM: sliceLen / 1000 };
+}
+
+/* ---------------------------------------------------------- helper sintesi */
+function summary(items, container) {
+  const cog = centerOfGravity(items);
+  const cogEval = evaluateCog(cog, container);
+  const axles = axleLoads(items, container);
+  const linear = linearLoadProfile(items, container);
+  return {
+    totalMass: cog.mass,
+    cog,
+    cogEval,
+    axles,
+    linear,
+    overweight: cog.mass > container.maxWeight
+  };
+}
+
+
+__M.TOLERANCES = TOLERANCES;
+__M.centerOfGravity = centerOfGravity;
+__M.evaluateCog = evaluateCog;
+__M.axleLoads = axleLoads;
+__M.linearLoadProfile = linearLoadProfile;
+__M.summary = summary;
+
+})();
+
+/* ====== js/packing.js ====== */
+(function(){
+/* ============================================================================
+   packing.js — algoritmo di disposizione automatica
+   ----------------------------------------------------------------------------
+   Strategia:
+   1) Bin packing 2D guillotine con liste di rettangoli liberi (skyline ibrido).
+   2) Multi-strategia di ordinamento (7 varianti, con/senza rotazione).
+   3) Pass di tightening sul miglior risultato.
+   4) Pass di stacking: dopo aver disposto a terra, se ci sono ancora casse
+      "stackable" non piazzate o casse leggere a terra, prova a impilarle
+      su altre casse di footprint compatibile rispettando:
+         - max 2 strati totali (configurabile)
+         - peso impilato <= maxStackWeight della cassa di base
+         - altezza totale <= altezza interna container
+         - ingombro orizzontale che resta dentro la cassa di base
+   ----------------------------------------------------------------------------
+   Le funzioni qui non toccano lo state direttamente: ricevono `items` e
+   ritornano il piano. È il chiamante (ux/main) che decide se applicarlo.
+   ========================================================================== */
+
+const { footprint, overlaps: itemsOverlap } = __M;
+
+/* ---------------------------------------------------------- helpers AABB */
+function rectsOverlap(a, b, tol = 1) {
+  return !(a.x + a.l - tol <= b.x || b.x + b.l - tol <= a.x ||
+           a.y + a.w - tol <= b.y || b.y + b.w - tol <= a.y);
+}
+
+function rectFitsInFree(rect, free) {
+  return rect.l <= free.w && rect.w <= free.d;
+}
+
+/* placedRect ha forma {x,y,l,w} (l = lungo X, w = lungo Y).
+   freeRect    ha forma {x,y,w,d} (w = larghezza X, d = profondità Y).
+   Ritorna i sotto-free-rect risultanti dal taglio del placedRect dentro freeRect. */
+function freeIntersects(free, placed) {
+  return !(free.x + free.w <= placed.x || placed.x + placed.l <= free.x ||
+           free.y + free.d <= placed.y || placed.y + placed.w <= free.y);
+}
+
+function splitOneFree(free, placed) {
+  /* MaxRects: dato free (x,y,w,d) e placed (x,y,l,w),
+     ritorna fino a 4 sottorettangoli liberi non sovrapposti al placed.
+     Se free e placed non si intersecano → ritorna [free] invariato. */
+  if (!freeIntersects(free, placed)) return [free];
+  const out = [];
+  // strisce sopra/sotto/sinistra/destra del placed all'interno del free
+  if (placed.y > free.y)
+    out.push({ x: free.x, y: free.y, w: free.w, d: placed.y - free.y });
+  if (placed.y + placed.w < free.y + free.d)
+    out.push({ x: free.x, y: placed.y + placed.w, w: free.w, d: (free.y + free.d) - (placed.y + placed.w) });
+  if (placed.x > free.x)
+    out.push({ x: free.x, y: free.y, w: placed.x - free.x, d: free.d });
+  if (placed.x + placed.l < free.x + free.w)
+    out.push({ x: placed.x + placed.l, y: free.y, w: (free.x + free.w) - (placed.x + placed.l), d: free.d });
+  return out.filter(r => r.w > 0.5 && r.d > 0.5);
+}
+
+function applyPlacementToFreeRects(freeList, placed) {
+  // Per ciascun free rect: se lo intersecca, sostituiscilo con i sotto-rect.
+  // Altrimenti lo conservo.
+  const next = [];
+  for (const f of freeList) {
+    next.push(...splitOneFree(f, placed));
+  }
+  return next;
+}
+
+function pruneFreeRects(rects) {
+  // rimuove rettangoli contenuti in altri
+  const cleaned = rects.filter(r => r.w > 50 && r.d > 50);  // soglia rumore
+  const result = [];
+  for (let i = 0; i < cleaned.length; i++) {
+    let contained = false;
+    for (let j = 0; j < cleaned.length; j++) {
+      if (i === j) continue;
+      const a = cleaned[i], b = cleaned[j];
+      if (a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.d <= b.y + b.d) {
+        contained = true; break;
+      }
+    }
+    if (!contained) result.push(cleaned[i]);
+  }
+  return result.sort((a, b) => (a.y - b.y) || (a.x - b.x)).slice(0, 100);
+}
+
+function rectIntersectsAny(rect, placedList) {
+  return placedList.some(p => rectsOverlap(rect, { x: p.x, y: p.y, l: p.l, w: p.w }));
+}
+
+/* ---------------------------------------------------------- core 2D pack */
+function tryPack(items, container, orderName, allowRotate) {
+  let free = [{ x: 0, y: 0, w: container.length, d: container.width }];
+  const packed = [];
+  const failed = [];
+
+  items.forEach(orig => {
+    // se l'item ha noRotate, niente rotazione 90°
+    const canRotate = allowRotate && !orig.noRotate;
+    const orientations = canRotate && orig.length !== orig.width
+      ? [
+          { l: orig.length, w: orig.width,  rotation: 0 },
+          { l: orig.width,  w: orig.length, rotation: 90 }
+        ]
+      : [{ l: orig.length, w: orig.width, rotation: orig.rotation || 0 }];
+
+    let best = null;
+
+    for (const o of orientations) {
+      if (o.l > container.length || o.w > container.width) continue;
+
+      for (const r of free) {
+        if (!rectFitsInFree({ l: o.l, w: o.w }, r)) continue;
+        const cand = { x: r.x, y: r.y, l: o.l, w: o.w };
+
+        // hard precision check
+        if (cand.x + cand.l > container.length + 0.5) continue;
+        if (cand.y + cand.w > container.width  + 0.5) continue;
+        if (rectIntersectsAny(cand, packed)) continue;
+
+        const waste = (r.w * r.d) - (o.l * o.w);
+        const boundL = Math.max(...packed.map(p => p.x + p.l), cand.x + cand.l, 0);
+        const boundW = Math.max(...packed.map(p => p.y + p.w), cand.y + cand.w, 0);
+        // priorità a riempire larghezza prima della lunghezza, poi y bassi
+        const score = waste * 1.4 + boundL * 0.20 + boundW * 0.80 + cand.y * 0.25 + cand.x * 0.04;
+
+        if (!best || score < best.score) {
+          best = { score, free: r, orientation: o, cand };
+        }
+      }
+    }
+
+    if (!best) { failed.push(orig); return; }
+
+    const placed_rect = {
+      ...orig,
+      x: best.cand.x,
+      y: best.cand.y,
+      l: best.cand.l,
+      w: best.cand.w,
+      rotation: best.orientation.rotation,
+      // length/width restano fisse (dimensioni cassa)
+      length: orig.length,
+      width: orig.width
+    };
+    packed.push(placed_rect);
+
+    free = applyPlacementToFreeRects(free, { x: placed_rect.x, y: placed_rect.y, l: placed_rect.l, w: placed_rect.w });
+    free = pruneFreeRects(free);
+  });
+
+  const usedArea = packed.reduce((s, i) => s + i.l * i.w, 0);
+  const boundL = packed.length ? Math.max(...packed.map(i => i.x + i.l)) : 0;
+  const boundW = packed.length ? Math.max(...packed.map(i => i.y + i.w)) : 0;
+  const totalWeight = packed.reduce((s, i) => s + Number(i.weight || 0), 0);
+
+  const collisionPenalty = packed.some((p, i) =>
+    packed.some((q, j) => i < j && rectsOverlap(
+      { x: p.x, y: p.y, l: p.l, w: p.w },
+      { x: q.x, y: q.y, l: q.l, w: q.w }
+    ))
+  ) ? 1e11 : 0;
+
+  const overweight = totalWeight > container.maxWeight ? 1e9 : 0;
+  const score = failed.length * 1e11 + collisionPenalty + boundL * 900 + boundW * 1200 - usedArea + overweight;
+
+  return { packed, failed, score, orderName, boundL, boundW, usedArea, totalWeight };
+}
+
+/* ---------------------------------------------------------- ordinamenti */
+function orderVariants(items) {
+  // Priority handling: items con priority > 0 sono scaricati prima (X piccolo, vicino alla porta)
+  // Quindi tra gli ordinamenti di area/peso ci infiliamo SEMPRE priority desc come primo criterio.
+  const withPriority = (cmp) => (a, b) => {
+    const pa = a.priority || 0, pb = b.priority || 0;
+    if (pa !== pb) return pb - pa;  // priority più alta prima
+    return cmp(a, b);
+  };
+  const copy = fn => [...items].sort(withPriority(fn)).map(x => ({ ...x }));
+  return [
+    { name: "priority_area",    items: copy((a, b) => (b.length * b.width) - (a.length * a.width)) },
+    { name: "priority_length",  items: copy((a, b) => b.length - a.length) },
+    { name: "priority_width",   items: copy((a, b) => b.width  - a.width) },
+    { name: "priority_max",     items: copy((a, b) => Math.max(b.length, b.width) - Math.max(a.length, a.width)) },
+    { name: "priority_weight",  items: copy((a, b) => (b.weight || 0) - (a.weight || 0)) },
+    { name: "original",         items: items.map(x => ({ ...x })) },
+    { name: "priority_asc",     items: copy((a, b) => (a.length * a.width) - (b.length * b.width)) }
+  ];
+}
+
+/* ---------------------------------------------------------- stacking pass */
+function tryStack(planned, container, options = {}) {
+  const maxLayers = options.maxLayers || 2;
+  // top candidates: hanno stackable=true (sono cassette leggere/piccole)
+  // base candidates: tutto ciò che NON ha acceptsStack === false (default sì)
+  const ground = planned.filter(p => (p.z || 0) === 0);
+  const stackables = ground.filter(p => p.stackable === true);
+
+  let moved = 0;
+  for (const top of stackables) {
+    if (top._stacked) continue;
+    const candidates = ground.filter(b => {
+      if (b.id === top.id) return false;
+      if (b._stacked) return false;
+      if (b.acceptsStack === false || b.noStackOnTop === true) return false;
+      // top deve entrare interamente nella base in pianta (post-rotazione)
+      const bL = b.l ?? (b.rotation === 90 ? b.width : b.length);
+      const bW = b.w ?? (b.rotation === 90 ? b.length : b.width);
+      const tL = top.l ?? (top.rotation === 90 ? top.width : top.length);
+      const tW = top.w ?? (top.rotation === 90 ? top.length : top.width);
+      if (tL > bL || tW > bW) return false;
+      // altezza totale ammissibile
+      if ((b.height || 0) + (top.height || 0) > container.height) return false;
+      // capacità peso della base
+      const cap = b.maxStackWeight || (b.weight ? b.weight * 2 : 1000);
+      const alreadyOnTop = (b._loadOnTop || 0);
+      if (alreadyOnTop + (top.weight || 0) > cap) return false;
+      return true;
+    });
+
+    if (!candidates.length) continue;
+    candidates.sort((a, b) => {
+      const aL = a.l ?? a.length, aW = a.w ?? a.width;
+      const bL = b.l ?? b.length, bW = b.w ?? b.width;
+      const tL = top.l ?? top.length, tW = top.w ?? top.width;
+      return ((aL - tL) + (aW - tW)) - ((bL - tL) + (bW - tW));
+    });
+    const base = candidates[0];
+    const baseL = base.l ?? base.length, baseW = base.w ?? base.width;
+    const topL  = top.l  ?? top.length,  topW  = top.w  ?? top.width;
+    top.x = base.x + Math.round((baseL - topL) / 2);
+    top.y = base.y + Math.round((baseW - topW) / 2);
+    top.z = base.height || 0;
+    top.stackedOn = base.id;
+    top._stacked = true;
+    base._loadOnTop = (base._loadOnTop || 0) + (top.weight || 0);
+    moved++;
+    if (maxLayers <= 2) continue;
+  }
+
+  planned.forEach(p => { delete p._stacked; delete p._loadOnTop; });
+  return { stackedCount: moved };
+}
+
+/* ---------------------------------------------------------- API pubblica */
+function optimizeLayout(placedInput, container, opts = {}) {
+  const allowStacking = opts.allowStacking !== false;
+  const baseItems = placedInput.map(p => ({
+    ...p,
+    // rimuovo coordinate per il packing pulito
+    x: 0, y: 0, z: 0,
+    rotation: 0,
+    l: undefined, w: undefined
+  }));
+
+  let best = null;
+  for (const v of orderVariants(baseItems)) {
+    const a1 = tryPack(v.items, container, v.name, true);
+    if (!best || a1.score < best.score) best = a1;
+    const a2 = tryPack(v.items, container, v.name + "_no_rot", false);
+    if (!best || a2.score < best.score) best = a2;
+  }
+  // pass di tightening
+  if (best && !best.failed.length) {
+    const tightened = [...best.packed]
+      .sort((a, b) => (a.y - b.y) || (a.x - b.x))
+      .map(p => ({ ...p, length: p.length, width: p.width }));
+    const t = tryPack(tightened, container, "tighten", true);
+    if (t.score < best.score) best = t;
+  }
+
+  // stacking
+  let stackInfo = { stackedCount: 0 };
+  if (allowStacking && best && best.packed.length) {
+    stackInfo = tryStack(best.packed, container);
+  }
+
+  // pulizia campi interni (l/w sono ridondanti con length/width+rotation)
+  best.packed.forEach(p => {
+    // length/width restano FISSE = dimensioni cassa originale
+    // rotation determina ingombro orientato; l/w erano usati internamente
+    delete p.l; delete p.w;
+    p.x = Math.round(p.x); p.y = Math.round(p.y);
+  });
+
+  return {
+    placed: best.packed,
+    failed: best.failed,
+    boundingLength: best.boundL,
+    boundingWidth: best.boundW,
+    usedArea: best.usedArea,
+    totalWeight: best.totalWeight,
+    strategy: best.orderName,
+    stackedCount: stackInfo.stackedCount
+  };
+}
+
+
+__M.optimizeLayout = optimizeLayout;
+
+})();
+
+/* ====== js/view2d.js ====== */
+(function(){
+/* view2d.js — riscritto: coordinate in mm, scaling via transform */
+
+const { state, CONTAINERS, footprint, overlaps, isInside, setPlacedPosition, rotatePlaced, pushHistory, save, activeContainer } = __M;
+
+let dragCtx = null;
+let panCtx  = null;
+let onChange = () => {};
+let currentScale = 1;
+function init({ onChange: cb } = {}) {
+  if (cb) onChange = cb;
+  setupBoardEvents();
+  window.addEventListener("resize", () => render2D());
+}
+function setOnChange(cb) { onChange = cb; }
+function requestFit() {
+  state.zoom = 1;
+  state.pan = { x: 0, y: 0 };
+}
+
+function computeFitScale(c, wrap) {
+  const W = wrap.clientWidth  - 40;
+  const H = wrap.clientHeight - 40;
+  if (W <= 0 || H <= 0) return 0.1;
+  return Math.min(W / c.length, H / c.width);
+}
+function render2D() {
+  const c = activeContainer();
+  const board    = document.getElementById("board");
+  const boardPan = document.getElementById("boardPan");
+  const wrap     = document.getElementById("view2d");
+  if (!board || !boardPan || !wrap) return;
+
+  if (wrap.clientWidth < 50 || wrap.clientHeight < 50) {
+    requestAnimationFrame(() => render2D());
+    return;
+  }
+
+  // dimensioni del board IN MILLIMETRI
+  board.style.width  = c.length + "px";
+  board.style.height = c.width  + "px";
+
+  // scala automatica per far entrare il container nel wrap
+  const fitScale = computeFitScale(c, wrap);
+  currentScale = fitScale * (state.zoom || 1);
+
+  const scaledW = c.length * currentScale;
+  const scaledH = c.width  * currentScale;
+  const offsetX = Math.max(8, (wrap.clientWidth  - scaledW) / 2) + (state.pan.x || 0);
+  const offsetY = Math.max(8, (wrap.clientHeight - scaledH) / 2) + (state.pan.y || 0);
+
+  boardPan.style.transformOrigin = "0 0";
+  boardPan.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${currentScale})`;
+
+  board.style.outline = `${Math.max(1, 3 / currentScale)}px solid #111827`;
+  board.style.border = "none";
+
+  board.querySelectorAll(".machine").forEach(el => el.remove());
+
+  // Solo le casse a base (z=0): le impilate vengono renderizzate come badge sulla base
+  const ground = state.placed.filter(p => (p.z || 0) === 0);
+  const stackedAbove = id => state.placed.filter(p => p.stackedOn === id);
+
+  ground.forEach((p) => {
+    const i = state.placed.indexOf(p);
+    const f = footprint(p);
+    const el = document.createElement("div");
+    el.className = "machine";
+    el.dataset.id = p.id;
+    if (state.selectedId === p.id) el.classList.add("selected");
+
+    const valid = isInside(p, c) && !state.placed.some(q => q.id !== p.id && (p.z||0) === (q.z||0) && overlaps(p, q));
+    if (!valid) el.classList.add("invalid");
+
+    const stack = stackedAbove(p.id);
+    const hasStack = stack.length > 0;
+    if (hasStack) el.classList.add("hasStack");
+
+    el.style.left   = p.x + "px";
+    el.style.top    = p.y + "px";
+    el.style.width  = f.l + "px";
+    el.style.height = f.w + "px";
+
+    const k = 1 / currentScale;
+    const fontMain  = Math.round(13 * k);
+    const fontSmall = Math.round(11 * k);
+    const padPx     = Math.round(8 * k);
+
+    el.style.padding = padPx + "px";
+    el.style.outlineWidth = Math.max(2, Math.round(2 * k)) + "px";
+    if (p.color) {
+      el.style.background = p.color;
+      el.style.outlineColor = "rgba(10, 22, 40, 0.4)";
+    }
+
+    el.innerHTML = `
+      <strong style="font-size:${fontMain}px">${i + 1}. ${escape(p.name || "")}</strong>
+      <small style="font-size:${fontSmall}px">${p.length}×${p.width}${p.rotation ? " · ruotata" : ""}</small>
+      ${p.serialNumber ? `<small class="assetExtra" style="font-size:${fontSmall}px">${escape(p.serialNumber)}</small>` : ""}
+      ${hasStack ? `<div class="stackBadge" data-stack-base="${p.id}" title="Clicca per ciclare le casse della torre" style="position:absolute;top:${Math.round(5*k)}px;right:${Math.round(5*k)}px;background:white;color:var(--navy);font-size:${Math.round(11*k)}px;font-weight:600;padding:${Math.round(3*k)}px ${Math.round(7*k)}px;border-radius:${Math.round(20*k)}px;line-height:1.2;cursor:pointer;z-index:10;box-shadow:0 ${Math.round(2*k)}px ${Math.round(6*k)}px rgba(0,0,0,0.12)">+${stack.length} sopra</div>` : ""}
+      <div class="rotateHandle" title="Ruota 90°" style="width:${Math.round(30*k)}px;height:${Math.round(30*k)}px;font-size:${Math.round(16*k)}px;border-width:${Math.max(2, Math.round(2*k))}px;right:${-Math.round(15*k)}px;top:${-Math.round(15*k)}px">↻</div>
+    `;
+    board.appendChild(el);
+  });
+}
+
+function setupBoardEvents() {
+  const wrap = document.getElementById("view2d");
+  const board = document.getElementById("board");
+  if (!wrap || !board) return;
+
+  board.addEventListener("pointerdown", e => {
+    // Click sul badge stack: cicla tra le casse della torre
+    const badge = e.target.closest(".stackBadge");
+    if (badge) {
+      const baseId = badge.dataset.stackBase;
+      const tower = [
+        state.placed.find(x => x.id === baseId),
+        ...state.placed.filter(x => x.stackedOn === baseId)
+      ].filter(Boolean).sort((a,b) => (a.z||0) - (b.z||0));
+      const curIdx = tower.findIndex(t => t.id === state.selectedId);
+      const next = tower[(curIdx + 1) % tower.length] || tower[0];
+      state.selectedId = next.id;
+      onChange();
+      e.stopPropagation();
+      return;
+    }
+    const handle = e.target.closest(".rotateHandle");
+    if (handle) {
+      const machine = handle.closest(".machine");
+      const id = machine.dataset.id;
+      pushHistory();
+      rotatePlaced(id, 90);
+      state.selectedId = id;
+      onChange();
+      e.stopPropagation();
+      return;
+    }
+    const machine = e.target.closest(".machine");
+    if (machine) {
+      const id = machine.dataset.id;
+      const p = state.placed.find(x => x.id === id);
+      if (!p) return;
+      state.selectedId = id;
+      const boardRect = board.getBoundingClientRect();
+      const mmX = (e.clientX - boardRect.left) / currentScale;
+      const mmY = (e.clientY - boardRect.top)  / currentScale;
+      dragCtx = {
+        id,
+        dxMm: mmX - p.x,
+        dyMm: mmY - p.y,
+        moved: false,
+        pointerId: e.pointerId
+      };
+      try { machine.setPointerCapture(e.pointerId); } catch (_) {}
+      e.stopPropagation();
+      onChange();
+      return;
+    }
+    if (state.panMode || e.button === 1) {
+      panCtx = { startX: e.clientX, startY: e.clientY, startPanX: state.pan.x, startPanY: state.pan.y };
+      wrap.style.cursor = "grabbing";
+    }
+  });
+
+  board.addEventListener("pointermove", e => {
+    if (!dragCtx) return;
+    const boardRect = board.getBoundingClientRect();
+    const mmX = (e.clientX - boardRect.left) / currentScale - dragCtx.dxMm;
+    const mmY = (e.clientY - boardRect.top)  / currentScale - dragCtx.dyMm;
+    const snap = e.shiftKey ? 50 : 10;
+    const sx = Math.round(mmX / snap) * snap;
+    const sy = Math.round(mmY / snap) * snap;
+    setPlacedPosition(dragCtx.id, sx, sy);
+    dragCtx.moved = true;
+    render2D();
+  });
+
+  board.addEventListener("pointerup", e => {
+    if (dragCtx) {
+      const machine = board.querySelector(`[data-id="${dragCtx.id}"]`);
+      if (machine && machine.releasePointerCapture) {
+        try { machine.releasePointerCapture(e.pointerId); } catch (_) {}
+      }
+      if (dragCtx.moved) {
+        // Verifica stacking manuale: se la cassa è sopra un'altra → impila
+        const drag = state.placed.find(p => p.id === dragCtx.id);
+        if (drag && (drag.z || 0) === 0) {
+          const candidates = state.placed.filter(p =>
+            p.id !== drag.id && (p.z || 0) === 0 &&
+            p.acceptsStack !== false && drag.stackable !== false
+          );
+          // Trova cassa che ha la nostra completamente dentro la sua footprint
+          const dragF = footprint(drag);
+          const target = candidates.find(t => {
+            const tf = footprint(t);
+            return drag.x >= t.x && drag.x + dragF.l <= t.x + tf.l &&
+                   drag.y >= t.y && drag.y + dragF.w <= t.y + tf.w;
+          });
+          if (target) {
+            // Verifica vincoli: peso, altezza
+            const tf = footprint(target);
+            if (drag.weight <= (target.maxStackWeight || target.weight * 2)) {
+              drag.x = target.x + Math.round((tf.l - dragF.l) / 2);
+              drag.y = target.y + Math.round((tf.w - dragF.w) / 2);
+              drag.z = target.height;
+              drag.stackedOn = target.id;
+            }
+          }
+        }
+        // Se trascinata via da una pila, riportiamo z a 0
+        else if (drag && (drag.z || 0) > 0) {
+          // Verifica se è ancora sopra il base
+          const base = state.placed.find(p => p.id === drag.stackedOn);
+          if (base) {
+            const dragF = footprint(drag);
+            const baseF = footprint(base);
+            const stillOver = drag.x >= base.x && drag.x + dragF.l <= base.x + baseF.l &&
+                              drag.y >= base.y && drag.y + dragF.w <= base.y + baseF.w;
+            if (!stillOver) { drag.z = 0; drag.stackedOn = null; }
+          } else { drag.z = 0; drag.stackedOn = null; }
+        }
+        save(); onChange();
+      }
+      dragCtx = null;
+    }
+  });
+
+  wrap.addEventListener("pointermove", e => {
+    if (!panCtx) return;
+    state.pan.x = panCtx.startPanX + (e.clientX - panCtx.startX);
+    state.pan.y = panCtx.startPanY + (e.clientY - panCtx.startY);
+    render2D();
+  });
+  wrap.addEventListener("pointerup",     () => { panCtx = null; wrap.style.cursor = state.panMode ? "grab" : ""; });
+  wrap.addEventListener("pointercancel", () => { panCtx = null; });
+
+  board.addEventListener("click", e => {
+    if (e.target === board) {
+      state.selectedId = null;
+      onChange();
+    }
+  });
+}
+
+function escape(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+
+__M.view2d = __M.view2d || {}; __M.view2d.init = init;
+__M.view2d = __M.view2d || {}; __M.view2d.render2D = render2D;
+__M.view2d = __M.view2d || {}; __M.view2d.setOnChange = setOnChange;
+__M.view2d = __M.view2d || {}; __M.view2d.requestFit = requestFit;
+
+})();
+
+/* ====== js/view3d.js ====== */
+(function(){
+/* view3d.js — vista 3D isometrica del container, riscritta correttamente.
+   Convenzioni: X = lunghezza container (porta a x=0), Y = larghezza, Z = altezza.
+   Sullo schermo Z punta verso l'alto (y_schermo decrescente). */
+
+const { state, CONTAINERS, footprint, activeContainer } = __M;
+
+let onChange = () => {};
+let dragging3d = null;
+function init({ onChange: cb } = {}) {
+  if (cb) onChange = cb;
+  setupEvents();
+  window.addEventListener("resize", () => render3D());
+}
+
+/* proiezione 3D corretta:
+   yaw   = rotazione attorno asse Z (in pianta).
+   pitch ∈ [0..π/2]: 0 = vista frontale, π/2 = vista dall'alto.
+   Z punta SEMPRE verso l'alto schermo. */
+function project3D(x, y, z, yaw, pitch) {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const xr = x * cy - y * sy;
+  const yr = x * sy + y * cy;
+  const sp = Math.sin(pitch), cp = Math.cos(pitch);
+  const sx = xr;
+  const sy_ = -z * cp + yr * sp;     // Z verso l'alto schermo
+  const depth = yr * cp + z * sp;
+  return { sx, sy: sy_, depth };
+}
+function render3D() {
+  const c = activeContainer();
+  const wrap = document.getElementById("view3d");
+  const sceneHost = document.getElementById("container3d");
+  if (!wrap || !sceneHost) return;
+
+  const W = wrap.clientWidth  || 1000;
+  const H = wrap.clientHeight || 620;
+  if (W < 50 || H < 50) {
+    requestAnimationFrame(() => render3D());
+    return;
+  }
+
+  const yaw   = (state.three.rotZ ?? -32) * Math.PI / 180;
+  const pitch = (state.three.pitch ?? 0.62);
+
+  const corners = [
+    [0,0,0],[c.length,0,0],[c.length,c.width,0],[0,c.width,0],
+    [0,0,c.height],[c.length,0,c.height],[c.length,c.width,c.height],[0,c.width,c.height]
+  ].map(([x,y,z]) => project3D(x,y,z,yaw,pitch));
+
+  const minX = Math.min(...corners.map(p => p.sx));
+  const maxX = Math.max(...corners.map(p => p.sx));
+  const minY = Math.min(...corners.map(p => p.sy));
+  const maxY = Math.max(...corners.map(p => p.sy));
+  const rawW = maxX - minX || 1, rawH = maxY - minY || 1;
+
+  const sc = Math.min((W * 0.85) / rawW, (H * 0.80) / rawH) * (state.three.zoom || 1);
+  const offX = W / 2 - ((minX + maxX) / 2) * sc + (state.three.x || 0);
+  const offY = H / 2 - ((minY + maxY) / 2) * sc + (state.three.y || 0);
+
+  const P = (x, y, z) => {
+    const p = project3D(x, y, z, yaw, pitch);
+    return { x: p.sx * sc + offX, y: p.sy * sc + offY, depth: p.depth };
+  };
+
+  const A = P(0,0,0), B = P(c.length,0,0), C = P(c.length,c.width,0), D = P(0,c.width,0);
+  const E = P(0,0,c.height), F = P(c.length,0,c.height), G = P(c.length,c.width,c.height), Hp = P(0,c.width,c.height);
+
+  const faces = [];
+
+  faces.push({ points:[A,B,C,D], depth:-1e9, fill:"#e8edf3", stroke:"#475569", strokeW:1 });
+  faces.push({ points:[D,C,G,Hp], depth:-5e8, fill:"#e2e8f0", opacity:0.65, stroke:"#94a3b8", strokeW:1 });
+  faces.push({ points:[B,C,G,F], depth:-5e8, fill:"#e2e8f0", opacity:0.45, stroke:"#94a3b8", strokeW:1 });
+
+  for (let i = 0; i < state.placed.length; i++) {
+    const p = state.placed[i];
+    const f = footprint(p);
+    const z0 = p.z || 0;
+    const z1 = z0 + (p.height || 0);
+    const x0 = p.x, x1 = p.x + f.l;
+    const y0 = p.y, y1 = p.y + f.w;
+
+    const v = {
+      a: P(x0,y0,z0), b: P(x1,y0,z0), c: P(x1,y1,z0), d: P(x0,y1,z0),
+      e: P(x0,y0,z1), f: P(x1,y0,z1), g: P(x1,y1,z1), h: P(x0,y1,z1)
+    };
+
+    const baseColor = p.color || "#a98358";
+    const sel = state.selectedId === p.id;
+    const stroke = sel ? "#000000" : "#3a2412";
+    const sw = sel ? 2.5 : 1;
+
+    faces.push({ points:[v.e,v.f,v.g,v.h], depth:avgDepth([v.e,v.f,v.g,v.h]),
+      fill:shade(baseColor, 1.18), stroke, strokeW:sw,
+      crateId:p.id, label:`${i+1}. ${p.name}`, labelPos:midpoint([v.e,v.f,v.g,v.h]) });
+    faces.push({ points:[v.a,v.b,v.f,v.e], depth:avgDepth([v.a,v.b,v.f,v.e]),
+      fill:shade(baseColor, 0.92), stroke, strokeW:sw, crateId:p.id });
+    faces.push({ points:[v.d,v.c,v.g,v.h], depth:avgDepth([v.d,v.c,v.g,v.h]),
+      fill:shade(baseColor, 0.62), stroke, strokeW:sw, crateId:p.id });
+    faces.push({ points:[v.b,v.c,v.g,v.f], depth:avgDepth([v.b,v.c,v.g,v.f]),
+      fill:shade(baseColor, 0.78), stroke, strokeW:sw, crateId:p.id });
+    faces.push({ points:[v.a,v.d,v.h,v.e], depth:avgDepth([v.a,v.d,v.h,v.e]),
+      fill:shade(baseColor, 0.70), stroke, strokeW:sw, crateId:p.id });
+  }
+
+  faces.sort((a, b) => a.depth - b.depth);
+
+  const outlineEdges = [
+    [A,B],[B,C],[C,D],[D,A],
+    [E,F],[F,G],[G,Hp],[Hp,E],
+    [A,E],[B,F],[C,G],[D,Hp]
+  ];
+  const doorEdges = [[A,E],[E,Hp],[Hp,D]];
+
+  let svg = `<svg class="isoSvg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="display:block">`;
+  svg += `<defs>
+    <linearGradient id="bg3d" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eef2f7"/>
+      <stop offset="1" stop-color="#cbd5e1"/>
+    </linearGradient>
+  </defs>`;
+  svg += `<rect width="100%" height="100%" fill="url(#bg3d)"/>`;
+
+  const shadow = [
+    {x: A.x+4, y: A.y+6}, {x: B.x+4, y: B.y+6},
+    {x: C.x+4, y: C.y+6}, {x: D.x+4, y: D.y+6}
+  ].map(p=>`${p.x},${p.y}`).join(" ");
+  svg += `<polygon points="${shadow}" fill="#000" opacity="0.08"/>`;
+
+  for (const fc of faces) {
+    const pts = fc.points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+    const op = fc.opacity != null ? ` opacity="${fc.opacity}"` : "";
+    const click = fc.crateId ? ` data-id="${fc.crateId}" class="isoCrate" style="cursor:pointer"` : "";
+    svg += `<polygon points="${pts}" fill="${fc.fill}" stroke="${fc.stroke}" stroke-width="${fc.strokeW}" stroke-linejoin="round"${op}${click}/>`;
+    if (fc.label && fc.labelPos) {
+      svg += `<text x="${fc.labelPos.x}" y="${fc.labelPos.y}" font-size="11" fill="#111827" text-anchor="middle" font-weight="800" pointer-events="none">${escape(fc.label)}</text>`;
+    }
+  }
+
+  for (const [p, q] of outlineEdges) {
+    svg += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="#1f2937" stroke-width="1.4" opacity="0.7"/>`;
+  }
+  for (const [p, q] of doorEdges) {
+    svg += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="#0369a1" stroke-width="2.5" stroke-dasharray="6 4"/>`;
+  }
+  const doorLabelPos = { x: (A.x + E.x) / 2 - 30, y: (A.y + E.y) / 2 };
+  svg += `<rect x="${doorLabelPos.x - 4}" y="${doorLabelPos.y - 12}" width="46" height="20" rx="4" fill="#0369a1"/>`;
+  svg += `<text x="${doorLabelPos.x + 19}" y="${doorLabelPos.y + 2}" font-size="11" fill="#fff" text-anchor="middle" font-weight="800">PORTA</text>`;
+
+  svg += renderAxesGizmo(W, H, yaw, pitch);
+  svg += `</svg>`;
+  sceneHost.innerHTML = svg;
+
+  sceneHost.querySelectorAll(".isoCrate").forEach(el => {
+    el.addEventListener("click", e => {
+      e.stopPropagation();
+      state.selectedId = el.getAttribute("data-id");
+      onChange();
+    });
+  });
+}
+
+function renderAxesGizmo(W, H, yaw, pitch) {
+  const cx = 60, cy = H - 60, len = 36;
+  const proj = (vx,vy,vz) => {
+    const cy2 = Math.cos(yaw), sy2 = Math.sin(yaw);
+    const xr = vx*cy2 - vy*sy2, yr = vx*sy2 + vy*cy2;
+    const sp = Math.sin(pitch), cp = Math.cos(pitch);
+    return { x: xr * len + cx, y: (-vz*cp + yr*sp) * len + cy };
+  };
+  const ox = { x: cx, y: cy };
+  const ax = proj(1,0,0), ay = proj(0,1,0), az = proj(0,0,1);
+  return `
+    <g pointer-events="none" font-family="Arial" font-weight="800" font-size="11">
+      <circle cx="${cx}" cy="${cy}" r="3" fill="#374151"/>
+      <line x1="${ox.x}" y1="${ox.y}" x2="${ax.x}" y2="${ax.y}" stroke="#dc2626" stroke-width="2.5"/>
+      <text x="${ax.x + 4}" y="${ax.y + 4}" fill="#dc2626">X</text>
+      <line x1="${ox.x}" y1="${ox.y}" x2="${ay.x}" y2="${ay.y}" stroke="#059669" stroke-width="2.5"/>
+      <text x="${ay.x + 4}" y="${ay.y + 4}" fill="#059669">Y</text>
+      <line x1="${ox.x}" y1="${ox.y}" x2="${az.x}" y2="${az.y}" stroke="#2563eb" stroke-width="2.5"/>
+      <text x="${az.x + 4}" y="${az.y + 4}" fill="#2563eb">Z</text>
+    </g>`;
+}
+
+function avgDepth(pts) { return pts.reduce((s, p) => s + p.depth, 0) / pts.length; }
+function midpoint(pts) {
+  return {
+    x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
+    y: pts.reduce((s, p) => s + p.y, 0) / pts.length + 4
+  };
+}
+function shade(hex, factor) {
+  const m = String(hex).match(/^#?([0-9a-f]{6})$/i);
+  if (!m) return hex;
+  let r = parseInt(m[1].slice(0,2), 16);
+  let g = parseInt(m[1].slice(2,4), 16);
+  let b = parseInt(m[1].slice(4,6), 16);
+  r = Math.max(0, Math.min(255, Math.round(r * factor)));
+  g = Math.max(0, Math.min(255, Math.round(g * factor)));
+  b = Math.max(0, Math.min(255, Math.round(b * factor)));
+  return `#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
+}
+function escape(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function setupEvents() {
+  const wrap = document.getElementById("view3d");
+  if (!wrap) return;
+
+  wrap.addEventListener("pointerdown", e => {
+    if (e.target.closest(".isoCrate")) return;
+    dragging3d = {
+      x: e.clientX, y: e.clientY,
+      rotZ: state.three.rotZ ?? -32,
+      pitch: state.three.pitch ?? 0.62,
+      panX: state.three.x || 0,
+      panY: state.three.y || 0,
+      mode: e.shiftKey ? "pan" : "orbit"
+    };
+    wrap.style.cursor = "grabbing";
+  });
+  wrap.addEventListener("pointermove", e => {
+    if (!dragging3d) return;
+    const dx = e.clientX - dragging3d.x;
+    const dy = e.clientY - dragging3d.y;
+    if (dragging3d.mode === "pan") {
+      state.three.x = dragging3d.panX + dx;
+      state.three.y = dragging3d.panY + dy;
+    } else {
+      state.three.rotZ = dragging3d.rotZ + dx * 0.45;
+      const newPitch = dragging3d.pitch - dy * 0.005;
+      state.three.pitch = Math.max(0.08, Math.min(1.45, newPitch));
+    }
+    render3D();
+  });
+  wrap.addEventListener("pointerup",     () => { dragging3d = null; wrap.style.cursor = "grab"; });
+  wrap.addEventListener("pointercancel", () => { dragging3d = null; });
+  wrap.addEventListener("wheel", e => {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
+    state.three.zoom = Math.max(0.3, Math.min(3.5, (state.three.zoom || 1) * factor));
+    render3D();
+  }, { passive: false });
+}
+
+
+__M.view3d = __M.view3d || {}; __M.view3d.init = init;
+__M.view3d = __M.view3d || {}; __M.view3d.render3D = render3D;
+
+})();
+
+/* ====== js/ux.js ====== */
+(function(){
+/* ============================================================================
+   ux.js — UI sidebar, shortcut tastiera, librerie e modali
+   ----------------------------------------------------------------------------
+   - Render libreria asset con filtri
+   - Asset modale (modifica/duplica/elimina)
+   - Pannello "elemento selezionato"
+   - Shortcut: Ctrl+Z / Ctrl+Shift+Z, R = ruota, Del = elimina, frecce = move,
+     Shift+Drag = snap grosso, T = toggle vista 2D/3D
+   ========================================================================== */
+
+const { state, CONTAINERS, footprint, save, undo, redo, rotatePlaced, removePlaced, movePlaced, placeAsset, pushHistory } = __M;
+const { DEFAULT_ASSETS, uniqueSeries } = __M;
+const { requestFit } = __M.view2d;
+
+let onChange = () => {};
+const $ = id => document.getElementById(id);
+function init({ onChange: cb } = {}) {
+  if (cb) onChange = cb;
+  setupShortcuts();
+  setupSidebar();
+  setupTopbar();
+  setupSelectedPanelContainer();
+}
+
+/* ---------------------------------------------------------- shortcut tastiera */
+function setupShortcuts() {
+  document.addEventListener("keydown", e => {
+    // ignora se l'utente sta scrivendo in un input/textarea/select
+    if (e.target.matches("input, textarea, select")) return;
+
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (ctrl && !e.shiftKey && e.key.toLowerCase() === "z") {
+      e.preventDefault(); if (undo()) onChange();
+    } else if ((ctrl && e.shiftKey && e.key.toLowerCase() === "z") || (ctrl && e.key.toLowerCase() === "y")) {
+      e.preventDefault(); if (redo()) onChange();
+    } else if (e.key.toLowerCase() === "r" && state.selectedId) {
+      e.preventDefault(); rotatePlaced(state.selectedId, e.shiftKey ? -90 : 90); onChange();
+    } else if ((e.key === "Delete" || e.key === "Backspace") && state.selectedId) {
+      e.preventDefault(); removePlaced(state.selectedId); onChange();
+    } else if (e.key.startsWith("Arrow") && state.selectedId) {
+      const step = e.shiftKey ? 100 : 10;
+      const map = { ArrowLeft: [-step,0], ArrowRight: [step,0], ArrowUp: [0,-step], ArrowDown: [0,step] };
+      const [dx, dy] = map[e.key];
+      e.preventDefault();
+      movePlaced(state.selectedId, dx, dy);
+      onChange();
+    } else if (e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      toggleView();
+    } else if (e.key === "Escape") {
+      state.selectedId = null;
+      onChange();
+    }
+  });
+}
+
+function toggleView() {
+  const v3 = $("view3d");
+  const v2 = $("view2d");
+  const isThree = v3.style.display !== "none";
+  if (isThree) {
+    v3.style.display = "none"; v2.style.display = "";
+    $("btn3d")?.classList.remove("active"); $("btn2d")?.classList.add("active");
+  } else {
+    v3.style.display = ""; v2.style.display = "none";
+    $("btn3d")?.classList.add("active"); $("btn2d")?.classList.remove("active");
+  }
+  onChange();
+}
+
+/* ---------------------------------------------------------- sidebar */
+function setupSidebar() {
+  // container select - filtrato per categoria
+  const sel = $("containerSelect");
+  function refillContainerSelect(category) {
+    if (!sel) return;
+    const filtered = Object.entries(CONTAINERS).filter(([_, v]) => v.type === category);
+    sel.innerHTML = filtered.map(([k,v]) => `<option value="${k}">${v.name}</option>`).join("");
+    // Se la chiave corrente non è di questa categoria, prendo la prima
+    const currentInCat = filtered.find(([k]) => k === state.containerKey);
+    if (!currentInCat && filtered.length) {
+      state.containerKey = filtered[0][0];
+    }
+    sel.value = state.containerKey;
+    syncCustomDimsBox();
+  }
+  function syncCustomDimsBox() {
+    const c = CONTAINERS[state.containerKey];
+    const box = $("customDimsBox");
+    if (box) box.style.display = c?.type === "custom" ? "block" : "none";
+    if (c?.type === "custom") {
+      $("customDimName").value = state.customDims.name || "";
+      $("customDimLength").value = state.customDims.length || c.length;
+      $("customDimWidth").value = state.customDims.width || c.width;
+      $("customDimHeight").value = state.customDims.height || c.height;
+      $("customDimMaxWeight").value = state.customDims.maxWeight || c.maxWeight;
+    }
+  }
+  // category chips
+  document.querySelectorAll('#cargoTypeChips .cargoChip').forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll('#cargoTypeChips .cargoChip').forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      refillContainerSelect(btn.dataset.cat);
+      pushHistory();
+      save(); onChange();
+    });
+  });
+  // attiva la categoria corrente all'inizio
+  const initialCat = CONTAINERS[state.containerKey]?.type || "container";
+  document.querySelectorAll('#cargoTypeChips .cargoChip').forEach(b => {
+    b.classList.toggle("active", b.dataset.cat === initialCat);
+  });
+  refillContainerSelect(initialCat);
+
+  if (sel) {
+    sel.onchange = () => { pushHistory(); state.containerKey = sel.value; syncCustomDimsBox(); save(); onChange(); };
+  }
+
+  // custom dims inputs
+  ["customDimName","customDimLength","customDimWidth","customDimHeight","customDimMaxWeight"].forEach(id => {
+    const inp = $(id);
+    if (!inp) return;
+    inp.addEventListener("change", () => {
+      pushHistory();
+      const key = id.replace("customDim","").toLowerCase();
+      const map = { name: "name", length: "length", width: "width", height: "height", maxweight: "maxWeight" };
+      const stateKey = map[key] || key;
+      state.customDims[stateKey] = inp.type === "number" ? Number(inp.value) : inp.value;
+      save(); onChange();
+    });
+  });
+
+  // units
+  const unitsSel = $("unitsSelect");
+  if (unitsSel) {
+    unitsSel.value = state.units || "metric";
+    unitsSel.onchange = () => { state.units = unitsSel.value; save(); onChange(); };
+  }
+
+  // project name
+  const pn = $("projectNameInput");
+  if (pn) {
+    pn.value = state.projectName;
+    pn.onchange = () => { state.projectName = pn.value.trim(); save(); };
+  }
+
+  // libreria
+  if (!state.assets || !state.assets.length) state.assets = DEFAULT_ASSETS.map(a => ({...a}));
+  renderLibrary();
+
+  // search e filtro serie
+  $("searchAsset")?.addEventListener("input", renderLibrary);
+  $("seriesFilter")?.addEventListener("change", renderLibrary);
+
+  // reset libreria
+  $("resetAssetsBtn")?.addEventListener("click", () => {
+    if (!confirm("Ripristinare la libreria asset alla versione di fabbrica? Le modifiche personali andranno perse.")) return;
+    state.assets = DEFAULT_ASSETS.map(a => ({...a}));
+    save();
+    renderLibrary();
+  });
+
+  // import asset da CSV/Excel
+  $("importAssetsFile")?.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const status = $("importStatus");
+    function showStatus(msg, type) {
+      status.style.display = "block";
+      status.textContent = msg;
+      if (type === "ok")  { status.style.background = "#ecfdf5"; status.style.color = "#065f46"; status.style.border = "1px solid #a7f3d0"; }
+      if (type === "err") { status.style.background = "#fef2f2"; status.style.color = "#991b1b"; status.style.border = "1px solid #fecaca"; }
+      if (type === "info"){ status.style.background = "#eff6ff"; status.style.color = "#1e3a8a"; status.style.border = "1px solid #bfdbfe"; }
+    }
+    showStatus("Lettura file in corso...", "info");
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        if (typeof XLSX === "undefined") {
+          showStatus("Errore: libreria di lettura Excel non caricata. Ricarica la pagina.", "err");
+          return;
+        }
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+        if (!rows.length) { showStatus("Il file è vuoto.", "err"); return; }
+
+        // Mapping flessibile dei nomi colonna (case-insensitive, lingue varie)
+        const norm = s => String(s).toLowerCase().trim().replace(/[\s_-]+/g, "");
+        function pick(row, keys) {
+          for (const k of keys) {
+            for (const rk of Object.keys(row)) {
+              if (norm(rk) === norm(k)) return row[rk];
+            }
+          }
+          return undefined;
+        }
+
+        const imported = [];
+        const errors = [];
+        rows.forEach((r, i) => {
+          const name = String(pick(r, ["nome","name","modello","model","descrizione"]) || "").trim();
+          const length = Number(pick(r, ["lunghezza","length","lungh","l"]));
+          const width  = Number(pick(r, ["larghezza","width","largh","w"]));
+          const height = Number(pick(r, ["altezza","height","alt","h"]));
+          const weight = Number(pick(r, ["peso","weight","kg"]));
+          if (!name || !(length > 0) || !(width > 0) || !(height > 0)) {
+            errors.push(`Riga ${i + 2}: dati incompleti (richiesti: nome, lunghezza, larghezza, altezza)`);
+            return;
+          }
+          imported.push({
+            id: "csv_" + Date.now().toString(36) + "_" + i,
+            series: String(pick(r, ["serie","series","categoria","category"]) || "IMPORTATO"),
+            name, model: name,
+            inches: String(pick(r, ["pollici","inches"]) || ""),
+            length, width, height,
+            weight: weight > 0 ? weight : 0,
+            color: String(pick(r, ["colore","color"]) || "#0f766e"),
+            stackable: ["si","sì","yes","true","1"].includes(String(pick(r, ["impilabile","stackable"]) || "").toLowerCase()),
+            maxStackWeight: Number(pick(r, ["pesomaximpilato","maxstackweight"])) || (weight ? weight * 2 : 1000)
+          });
+        });
+
+        if (!imported.length) {
+          showStatus("Nessuna riga valida importata. " + errors.slice(0, 3).join("; "), "err");
+          return;
+        }
+        state.assets = imported.concat(state.assets);
+        save();
+        renderLibrary();
+        let msg = `✓ Importati ${imported.length} asset`;
+        if (errors.length) msg += `. ${errors.length} righe con errori ignorate.`;
+        showStatus(msg, "ok");
+      } catch (err) {
+        showStatus("Errore lettura file: " + err.message, "err");
+      }
+      $("importAssetsFile").value = "";
+    };
+    reader.onerror = () => showStatus("Errore lettura file.", "err");
+    reader.readAsArrayBuffer(file);
+  });
+
+  // download template CSV
+  $("downloadTemplateBtn")?.addEventListener("click", () => {
+    const csv = "nome,serie,lunghezza,larghezza,altezza,peso,colore,impilabile\n" +
+                "Cassa esempio 1,SERIE A,2000,1000,1500,800,#0f766e,no\n" +
+                "Cassa esempio 2,SERIE A,1500,800,1000,400,#1d4ed8,si\n" +
+                "Pallet,LOGISTICA,1200,800,144,25,#a3a3a3,si\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "template_asset.csv"; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // salvataggio asset custom
+  $("saveAsset")?.addEventListener("click", () => {
+    const name = $("assetName").value.trim();
+    if (!name) { alert("Inserisci un nome per l'asset."); return; }
+    const a = {
+      series: $("assetSeries").value || "CUSTOM",
+      name,
+      model: $("assetModel")?.value.trim() || name,
+      inches: $("assetInches")?.value.trim() || "",
+      length: Number($("assetLength").value),
+      width:  Number($("assetWidth").value),
+      height: Number($("assetHeight").value),
+      weight: Number($("assetWeight").value),
+      color:  $("assetColor").value || "#1d4ed8",
+      stackable: false,
+      id: "custom_" + Date.now().toString(36)
+    };
+    state.assets.unshift(a);
+    save();
+    renderLibrary();
+  });
+
+  // collapsible
+  document.querySelectorAll(".collapseBtn").forEach(btn => {
+    const key = btn.dataset.collapse;
+    if (state.collapsed[key]) btn.closest(".collapsiblePanel").classList.add("collapsed");
+    btn.addEventListener("click", () => {
+      const panel = btn.closest(".collapsiblePanel");
+      panel.classList.toggle("collapsed");
+      state.collapsed[key] = panel.classList.contains("collapsed");
+      btn.textContent = state.collapsed[key] ? "+" : "−";
+      save();
+    });
+  });
+}
+
+function renderLibrary() {
+  const search = ($("searchAsset")?.value || "").toLowerCase();
+  const series = $("seriesFilter")?.value || "";
+
+  // popola filtro serie
+  const seriesSel = $("seriesFilter");
+  if (seriesSel && !seriesSel.dataset.filled) {
+    const opts = uniqueSeries(state.assets);
+    seriesSel.innerHTML = `<option value="">Tutte le serie</option>` + opts.map(s => `<option value="${escape(s)}">${escape(s)}</option>`).join("");
+    seriesSel.dataset.filled = "1";
+  }
+
+  const list = $("assetList");
+  if (!list) return;
+
+  const filtered = state.assets.filter(a => {
+    if (series && a.series !== series) return false;
+    if (search && !(`${a.name} ${a.model || ""} ${a.series || ""} ${a.inches || ""}`.toLowerCase().includes(search))) return false;
+    return true;
+  });
+
+  list.innerHTML = filtered.map(a => `
+    <div class="asset-card" data-id="${a.id}">
+      <div class="asset-title">
+        <span class="dot" style="background:${a.color || '#666'}"></span>
+        <div>
+          <strong>${escape(a.name)}${a.inches ? ` <span style="color:var(--text-3);font-weight:500">${escape(a.inches)}"</span>` : ""}</strong>
+          <p>${escape(a.series || "")} · ${a.length}×${a.width}×${a.height} mm · ${a.weight} kg ${a.stackable ? '· <span style="color:var(--ok)">impilabile</span>' : ""}</p>
+        </div>
+      </div>
+      <div class="mini">
+        <button class="addBtn" title="Aggiungi al container">+</button>
+        <button class="editBtn" title="Modifica">✎</button>
+      </div>
+    </div>
+  `).join("");
+
+  list.querySelectorAll(".addBtn").forEach(btn => btn.addEventListener("click", e => {
+    const id = btn.closest(".asset-card").dataset.id;
+    const asset = state.assets.find(a => a.id === id);
+    if (asset) { placeAsset(asset); onChange(); }
+  }));
+  list.querySelectorAll(".editBtn").forEach(btn => btn.addEventListener("click", e => {
+    const id = btn.closest(".asset-card").dataset.id;
+    openAssetModal(id);
+  }));
+}
+
+/* ---------------------------------------------------------- asset modal */
+function openAssetModal(assetId) {
+  const a = state.assets.find(x => x.id === assetId);
+  if (!a) return;
+  $("editAssetId").value = a.id;
+  $("editSeries").value = a.series || "";
+  $("editModel").value  = a.model || a.name || "";
+  $("editInches").value = a.inches || "";
+  $("editLength").value = a.length;
+  $("editWidth").value  = a.width;
+  $("editHeight").value = a.height;
+  $("editWeight").value = a.weight;
+  $("editColor").value  = a.color || "#0f766e";
+
+  // Aggiungo blocco constraints on-the-fly se non esiste
+  let constraintsBox = document.getElementById("editConstraintsBox");
+  if (!constraintsBox) {
+    const container = document.querySelector("#assetModal .grid2");
+    if (container) {
+      constraintsBox = document.createElement("div");
+      constraintsBox.id = "editConstraintsBox";
+      constraintsBox.style.cssText = "margin-top:12px;padding:10px;background:#f9fafb;border-radius:8px";
+      constraintsBox.innerHTML = `
+        <p style="font-size:12px;font-weight:700;color:#0f172a;margin:0 0 8px">Constraints</p>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:3px 0"><input id="editStackable" type="checkbox"> Si può impilare SOPRA altre casse</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:3px 0"><input id="editNoStackOnTop" type="checkbox"> Non si può impilare niente SOPRA questa</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:3px 0"><input id="editNoTilt" type="checkbox"> Non ruotabile in piedi (alto/largo fissi)</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:3px 0"><input id="editNoRotate" type="checkbox"> Non ruotabile in pianta (orientazione fissa)</label>
+        <label style="display:block;font-size:13px;padding:6px 0;margin-top:6px">
+          <span style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Priorità di scarico (0 = nessuna, 1 = primo destinatario vicino porta)</span>
+          <input id="editPriority" type="number" min="0" max="50" style="width:100%;padding:8px;border:1px solid #d4d4d8;border-radius:6px">
+        </label>
+      `;
+      container.parentNode.insertBefore(constraintsBox, container.nextSibling);
+    }
+  }
+  if ($("editStackable")) $("editStackable").checked = a.stackable === true;
+  if ($("editNoStackOnTop")) $("editNoStackOnTop").checked = a.noStackOnTop === true;
+  if ($("editNoTilt")) $("editNoTilt").checked = a.noTilt === true;
+  if ($("editNoRotate")) $("editNoRotate").checked = a.noRotate === true;
+  if ($("editPriority")) $("editPriority").value = a.priority || 0;
+
+  $("assetModal").style.display = "flex";
+}
+
+function setupSelectedPanelContainer() {
+  $("closeModal")?.addEventListener("click", () => { $("assetModal").style.display = "none"; });
+  $("assetModal")?.addEventListener("click", e => {
+    if (e.target.id === "assetModal") $("assetModal").style.display = "none";
+  });
+  $("saveAssetModal")?.addEventListener("click", () => {
+    const id = $("editAssetId").value;
+    const a = state.assets.find(x => x.id === id);
+    if (!a) return;
+    pushHistory();
+    a.series = $("editSeries").value;
+    a.model  = $("editModel").value;
+    a.inches = $("editInches").value;
+    a.length = Number($("editLength").value);
+    a.width  = Number($("editWidth").value);
+    a.height = Number($("editHeight").value);
+    a.weight = Number($("editWeight").value);
+    a.color  = $("editColor").value;
+    a.name   = `${a.model} ${a.inches || ""}`.trim();
+    if ($("editStackable")) a.stackable = $("editStackable").checked;
+    if ($("editNoStackOnTop")) a.noStackOnTop = $("editNoStackOnTop").checked;
+    if ($("editNoTilt")) a.noTilt = $("editNoTilt").checked;
+    if ($("editNoRotate")) a.noRotate = $("editNoRotate").checked;
+    if ($("editPriority")) a.priority = Number($("editPriority").value || 0);
+    // sincronizza placed che usano questo asset
+    state.placed.forEach(p => {
+      if (p.assetId === id) {
+        p.length = a.length; p.width = a.width; p.height = a.height;
+        p.weight = a.weight; p.color = a.color; p.name = a.name;
+        p.series = a.series; p.model = a.model; p.inches = a.inches;
+      }
+    });
+    save();
+    $("assetModal").style.display = "none";
+    onChange();
+  });
+  $("deleteAssetModal")?.addEventListener("click", () => {
+    const id = $("editAssetId").value;
+    if (!confirm("Eliminare l'asset dalla libreria? Le casse già piazzate restano ma non potranno essere rigenerate.")) return;
+    state.assets = state.assets.filter(a => a.id !== id);
+    save();
+    $("assetModal").style.display = "none";
+    onChange();
+  });
+}
+function renderSelectedPanel() {
+  const panel = $("selectedPanel");
+  if (!panel) return;
+  const p = state.placed.find(x => x.id === state.selectedId);
+  if (!p) {
+    panel.innerHTML = `<p class="muted">Seleziona una cassa nel layout.<br><span style="font-size:11px">Scorciatoie: <b>R</b> ruota · <b>Del</b> elimina · <b>frecce</b> sposta · <b>Shift+frecce</b> ×10 · <b>Ctrl+Z</b> undo · <b>T</b> 2D/3D</span></p>`;
+    return;
+  }
+  const f = footprint(p);
+
+  // Calcola la torre completa di cui fa parte p
+  const baseId = p.stackedOn || p.id;
+  const tower = [
+    state.placed.find(x => x.id === baseId),
+    ...state.placed.filter(x => x.stackedOn === baseId)
+  ].filter(Boolean).sort((a,b) => (a.z||0) - (b.z||0));
+
+  // SVG vista laterale della torre
+  let towerSvg = "";
+  if (tower.length > 1) {
+    const totalH = tower.reduce((s, t) => Math.max(s, (t.z || 0) + (t.height || 0)), 0);
+    const baseF = footprint(tower[0]);
+    const W = 220, H = 180, pad = 10;
+    const sx = (W - 2*pad) / Math.max(baseF.l, baseF.w);
+    const sz = (H - 2*pad) / totalH;
+    const s = Math.min(sx, sz) * 0.95;
+    const drawW = baseF.l * s;
+    const drawH = totalH * s;
+    const x0 = (W - drawW) / 2;
+    const y0 = H - pad;
+
+    let svgInner = `<line x1="${x0}" y1="${y0}" x2="${x0+drawW}" y2="${y0}" stroke="#0f172a" stroke-width="2"/>`;
+    tower.forEach((t, idx) => {
+      const tf = footprint(t);
+      const tw = tf.l * s;
+      const th = (t.height || 0) * s;
+      const tz = (t.z || 0) * s;
+      const tx = x0 + ((baseF.l - tf.l) / 2) * s;
+      const ty = y0 - tz - th;
+      const isSel = t.id === p.id;
+      const fill = t.color || "#0f766e";
+      const stroke = isSel ? "#fbbf24" : "#0f172a";
+      const sw = isSel ? 2.5 : 1;
+      svgInner += `<rect x="${tx}" y="${ty}" width="${tw}" height="${th}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+      const idx2 = state.placed.indexOf(t) + 1;
+      svgInner += `<text x="${tx+4}" y="${ty+11}" font-size="9" fill="white" font-weight="700">${idx2}. ${escape((t.name||"").slice(0,14))}</text>`;
+      svgInner += `<text x="${tx+4}" y="${ty+22}" font-size="8" fill="white">${t.height}mm · ${t.weight}kg</text>`;
+    });
+    towerSvg = `<div style="background:white;border:1px solid #cbd5e1;border-radius:8px;padding:6px;margin-top:8px">
+      <div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:4px">📐 Vista laterale torre (${tower.length} casse)</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${svgInner}</svg>
+    </div>`;
+  }
+
+  panel.innerHTML = `
+    <strong>${escape(p.name)} · ${escape(p.series || "")}</strong>
+    <p class="muted">Cassa: ${p.length} × ${p.width} × ${p.height} mm · ${p.weight} kg
+    ${(p.z || 0) > 0 ? `<br><span style="color:#7c2d12">⬆ impilata @ z=${p.z} mm</span>` : ""}
+    ${p.stackable ? `<br><span style="color:#047857">impilabile</span>` : ""}
+    </p>
+    ${towerSvg}
+    <div class="grid2" style="margin-top:8px">
+      <label class="number"><span>X mm</span><input id="selX" type="number" value="${p.x}"></label>
+      <label class="number"><span>Y mm</span><input id="selY" type="number" value="${p.y}"></label>
+    </div>
+    <div class="actions">
+      <button id="leftBtn">← 100</button>
+      <button id="rightBtn">100 →</button>
+      <button id="upBtn">↑ 100</button>
+      <button id="downBtn">100 ↓</button>
+      <button id="selRotateBtn">↻ 90°</button>
+      <button id="selRotateBackBtn">↺ -90°</button>
+      <button id="editPlacedBtn">✎ Asset</button>
+      <button id="duplicateBtn2">⧉ Duplica</button>
+      <button id="removeBtn" class="dangerBtn">🗑 Rimuovi</button>
+    </div>
+    <p class="note" style="margin-top:6px;font-size:11px">Ingombro orientato: ${f.l} × ${f.w} mm (rot ${p.rotation || 0}°)</p>
+  `;
+  $("selX").onchange = e => { pushHistory(); p.x = Number(e.target.value); save(); onChange(); };
+  $("selY").onchange = e => { pushHistory(); p.y = Number(e.target.value); save(); onChange(); };
+  $("leftBtn").onclick  = () => { movePlaced(p.id, -100, 0); onChange(); };
+  $("rightBtn").onclick = () => { movePlaced(p.id,  100, 0); onChange(); };
+  $("upBtn").onclick    = () => { movePlaced(p.id, 0, -100); onChange(); };
+  $("downBtn").onclick  = () => { movePlaced(p.id, 0,  100); onChange(); };
+  $("selRotateBtn").onclick     = () => { rotatePlaced(p.id,  90); onChange(); };
+  $("selRotateBackBtn").onclick = () => { rotatePlaced(p.id, -90); onChange(); };
+  $("editPlacedBtn").onclick = () => { if (p.assetId) openAssetModal(p.assetId); };
+  $("duplicateBtn2").onclick = () => {
+    const asset = state.assets.find(a => a.id === p.assetId) || p;
+    placeAsset(asset);
+    onChange();
+  };
+  $("removeBtn").onclick = () => { removePlaced(p.id); onChange(); };
+}
+
+/* ---------------------------------------------------------- topbar */
+function showView(which) {
+  ["view2d", "viewSide", "view3d"].forEach(id => {
+    const el = $(id); if (!el) return;
+    el.style.display = (id === which) ? "" : "none";
+  });
+  ["btn2d", "btnSide", "btn3d"].forEach((id, i) => {
+    const want = ["view2d", "viewSide", "view3d"][i];
+    $(id)?.classList.toggle("active", want === which);
+  });
+  if (which === "viewSide") renderSideView();
+}
+
+function renderSideView() {
+  const c = activeContainer();
+  const svg = $("sideSvg");
+  if (!svg) return;
+  const wrap = svg.parentElement;
+  const W = wrap.clientWidth || 800;
+  const H = wrap.clientHeight || 500;
+  const pad = 30;
+  // Scala: container.length × container.height → W-2pad × H-2pad
+  const sx = (W - 2 * pad) / c.length;
+  const sz = (H - 2 * pad) / c.height;
+  const s  = Math.min(sx, sz) * 0.95;
+
+  const drawW = c.length * s;
+  const drawH = c.height * s;
+  const x0 = (W - drawW) / 2;
+  const y0 = H - pad - drawH;  // origine dal basso
+
+  let html = "";
+  // Container outline
+  html += `<rect x="${x0}" y="${y0}" width="${drawW}" height="${drawH}" fill="white" stroke="#111827" stroke-width="2"/>`;
+  // Pavimento
+  html += `<line x1="${x0}" y1="${y0+drawH}" x2="${x0+drawW}" y2="${y0+drawH}" stroke="#111827" stroke-width="3"/>`;
+  // Porta a sinistra
+  html += `<rect x="${x0-12}" y="${y0}" width="12" height="${drawH}" fill="#0369a1" opacity="0.9"/>`;
+  html += `<text x="${x0-6}" y="${y0+drawH/2}" font-size="11" fill="white" font-weight="800" text-anchor="middle" transform="rotate(-90 ${x0-6} ${y0+drawH/2})">PORTA</text>`;
+
+  // Casse: ordina per Y (più vicino allo spettatore prima per Y bassa, ma per vista laterale meglio Y centro media)
+  // proietta tutto su X-Z. Le casse alla stessa X possono sovrapporsi: le tratto come strati.
+  const sorted = [...state.placed].sort((a,b) => (a.y || 0) - (b.y || 0));
+  sorted.forEach((p, idx) => {
+    const fp_ = footprint(p);
+    const px = x0 + (p.x || 0) * s;
+    const pw = fp_.l * s;
+    const pz = (p.z || 0) * s;
+    const ph = (p.height || 0) * s;
+    const py = y0 + drawH - pz - ph;
+    const opacity = (p.y || 0) > c.width / 2 ? 0.5 : 0.9;
+    html += `<rect x="${px}" y="${py}" width="${pw}" height="${ph}" fill="${p.color || "#0f766e"}" stroke="#111827" stroke-width="0.8" opacity="${opacity}"/>`;
+    if (pw > 36 && ph > 18) {
+      html += `<text x="${px+4}" y="${py+12}" font-size="9" fill="white" font-weight="700">${(state.placed.indexOf(p)+1)}.${escape((p.name||"").slice(0,12))}</text>`;
+      html += `<text x="${px+4}" y="${py+22}" font-size="8" fill="white">${p.length}×${p.height}mm</text>`;
+    }
+  });
+
+  // Quote
+  html += `<text x="${x0}" y="${y0+drawH+18}" font-size="10" fill="#374151">0</text>`;
+  html += `<text x="${x0+drawW}" y="${y0+drawH+18}" font-size="10" fill="#374151" text-anchor="end">${c.length} mm</text>`;
+  html += `<text x="${x0-6}" y="${y0+drawH}" font-size="10" fill="#374151" text-anchor="end">0</text>`;
+  html += `<text x="${x0-6}" y="${y0+10}" font-size="10" fill="#374151" text-anchor="end">${c.height}</text>`;
+
+  svg.innerHTML = html;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+}
+
+function setupTopbar() {
+  $("btn2d")?.addEventListener("click", () => showView("view2d"));
+  $("btnSide")?.addEventListener("click", () => showView("viewSide"));
+  $("btn3d")?.addEventListener("click", () => showView("view3d"));
+  $("resetViewBtn")?.addEventListener("click", () => {
+    requestFit();
+    state.three = { rotZ: -32, pitch: 0.62, zoom: 1, x: 0, y: 0 };
+    onChange();
+  });
+  $("zoomInBtn") ?.addEventListener("click", () => { state.zoom = Math.min(3, state.zoom * 1.2); onChange(); });
+  $("zoomOutBtn")?.addEventListener("click", () => { state.zoom = Math.max(0.3, state.zoom / 1.2); onChange(); });
+  $("fitBtn")    ?.addEventListener("click", () => { requestFit(); onChange(); });
+  $("panModeBtn")?.addEventListener("click", () => {
+    state.panMode = !state.panMode;
+    $("panModeBtn").classList.toggle("active", state.panMode);
+    document.getElementById("view2d").style.cursor = state.panMode ? "grab" : "";
+  });
+
+  $("clearBtn")?.addEventListener("click", () => {
+    if (!confirm("Rimuovere tutte le casse dal container?")) return;
+    pushHistory();
+    state.placed = [];
+    state.selectedId = null;
+    save();
+    onChange();
+  });
+
+  $("undoBtn")?.addEventListener("click", () => { if (undo()) onChange(); });
+  $("redoBtn")?.addEventListener("click", () => { if (redo()) onChange(); });
+}
+
+function escape(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+
+__M.ux = __M.ux || {}; __M.ux.init = init;
+__M.ux = __M.ux || {}; __M.ux.renderSelectedPanel = renderSelectedPanel;
+__M.ux = __M.ux || {}; __M.ux.openAssetModal = openAssetModal;
+
+})();
+
+/* ====== js/pdf.js ====== */
+(function(){
+/* ============================================================================
+   pdf.js — generazione del report di stampa (PDF tramite window.print)
+   ----------------------------------------------------------------------------
+   Niente librerie esterne: usiamo @media print + @page A4 landscape.
+   Il report include:
+     - intestazione con nome progetto, container, data
+     - metriche: peso, area, casse, baricentro, carico assi
+     - SVG vista 2D (vettoriale)
+     - distinta carico completa
+     - tabella controlli e issues
+     - sezione "validazione spedizione" con check passa/fallisce
+   ========================================================================== */
+
+const { state, CONTAINERS, footprint, activeContainer } = __M;
+const { summary } = __M;
+function buildAndPrint() {
+  const c = activeContainer();
+  const sum = summary(state.placed, c);
+  const projectName = state.projectName || promptProjectName() || "Layout container";
+  state.projectName = projectName;
+
+  const reportEl = document.getElementById("printReport");
+  reportEl.innerHTML = renderReport(projectName, c, sum);
+
+  setTimeout(() => window.print(), 80);
+}
+
+function promptProjectName() {
+  const v = prompt("Nome progetto / prova di disposizione:", "Layout container");
+  return v ? v.trim() : "";
+}
+
+/* ---------------------------------------------------------- HTML report */
+function renderReport(projectName, c, sum) {
+  const totalKg = Math.round(sum.totalMass);
+  const used = state.placed.reduce((s, i) => {
+    const f = footprint(i);
+    return s + ((i.z || 0) === 0 ? f.l * f.w : 0);
+  }, 0);
+  const areaPct = c.length && c.width ? Math.round(used / (c.length * c.width) * 100) : 0;
+  const stackedCount = state.placed.filter(p => (p.z || 0) > 0).length;
+  const cogStatus = sum.cogEval.issues.length === 0
+    ? `<span style="color:#047857;font-weight:700">OK</span>`
+    : `<span style="color:#dc2626;font-weight:700">${sum.cogEval.issues.length} avvisi</span>`;
+
+  return `
+    <div class="printHeader">
+      <div>
+        <h1>${escape(projectName)}</h1>
+        <p>Container Loading Planner · Generato il ${new Date().toLocaleString("it-IT")}</p>
+        <p>Le misure degli asset sono dimensioni imballaggio / cassa.</p>
+      </div>
+      <div class="right">
+        <b>${escape(c.name)}</b>
+        <p>Lunghezza interna: ${c.length} mm / ${(c.length/1000).toFixed(2)} m</p>
+        <p>Larghezza interna: ${c.width} mm / ${(c.width/1000).toFixed(2)} m</p>
+        <p>Altezza interna: ${c.height} mm / ${(c.height/1000).toFixed(2)} m</p>
+      </div>
+    </div>
+
+    <div class="printGrid">
+      <div class="printMetric"><span>Peso totale casse</span><b>${totalKg.toLocaleString("it-IT")} kg / payload ${c.maxWeight.toLocaleString("it-IT")} kg</b></div>
+      <div class="printMetric"><span>Area pavimento usata</span><b>${areaPct}%</b></div>
+      <div class="printMetric"><span>Numero casse</span><b>${state.placed.length}${stackedCount ? ` (${stackedCount} impilate)` : ""}</b></div>
+      <div class="printMetric"><span>Stato controlli</span><b>${cogStatus}</b></div>
+    </div>
+
+    <div class="printSvgWrap">
+      <h2>Layout 2D del container</h2>
+      ${buildLayoutSvg(c)}
+    </div>
+
+    <div class="printTable">
+      <h2>Distinta carico</h2>
+      ${state.placed.length === 0 ? `
+        <div class="printEmpty">Nessuna cassa nel container.</div>
+      ` : `
+      <table>
+        <thead>
+          <tr>
+            <th style="width:24px">#</th>
+            <th>Serie</th>
+            <th>Modello</th>
+            <th style="width:50px">Pollici</th>
+            <th style="width:80px">Matricola</th>
+            <th style="width:60px">Finezza</th>
+            <th style="width:120px">Cassa mm</th>
+            <th style="width:55px">Peso kg</th>
+            <th style="width:50px">X mm</th>
+            <th style="width:50px">Y mm</th>
+            <th style="width:50px">Z mm</th>
+            <th style="width:32px">Rot</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${state.placed.map((p, i) => `<tr>
+            <td>${i + 1}</td>
+            <td>${escape(p.series || "")}</td>
+            <td>${escape(p.model || p.name || "")}${p.inches ? ` ${escape(p.inches)}"` : ""}</td>
+            <td>${escape(p.inches || "")}</td>
+            <td>${escape(p.serialNumber || "")}</td>
+            <td>${escape(p.gauge || "")}</td>
+            <td>${p.length} × ${p.width} × ${p.height}</td>
+            <td>${p.weight}</td>
+            <td>${p.x}</td>
+            <td>${p.y}</td>
+            <td>${p.z || 0}</td>
+            <td>${p.rotation || 0}°</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      `}
+    </div>
+
+    <div class="printFooter">
+      Nota tecnica: prima della spedizione verificare baricentro, fissaggi, distribuzione pesi, portata pavimento, carico assi, blocchi anti-movimento, dimensioni porta e istruzioni dello spedizioniere.
+    </div>
+  `;
+}
+
+function getIndexOf(id) {
+  const idx = state.placed.findIndex(p => p.id === id);
+  return idx >= 0 ? `#${idx + 1}` : "?";
+}
+
+/* Genera packing list professionale - apre nuova finestra con HTML stampabile */
+function generatePackingList() {
+  if (!state.placed.length) {
+    alert("Nessuna cassa nel container. Aggiungi casse prima di generare il packing list.");
+    return;
+  }
+  const c = activeContainer();
+  const projectName = state.projectName || $("projectName")?.value || "Layout container";
+  const totalKg = state.placed.reduce((s, p) => s + Number(p.weight || 0), 0);
+  const totalVol = state.placed.reduce((s, p) => s + (p.length * p.width * p.height) / 1e9, 0);
+
+  // Raggruppa per modello/serie per il riepilogo
+  const byModel = {};
+  state.placed.forEach(p => {
+    const k = (p.series || "—") + "|" + (p.model || p.name);
+    if (!byModel[k]) byModel[k] = { series: p.series || "—", model: p.model || p.name,
+      length: p.length, width: p.width, height: p.height, weight: p.weight, qty: 0, totalKg: 0 };
+    byModel[k].qty++;
+    byModel[k].totalKg += Number(p.weight || 0);
+  });
+  const summary = Object.values(byModel);
+
+  // Sequenza di carico
+  const sequence = [...state.placed]
+    .map((p, i) => ({ ...p, originalIndex: i }))
+    .sort((a, b) => {
+      if ((a.priority || 0) !== (b.priority || 0)) return (b.priority || 0) - (a.priority || 0);
+      if ((a.z || 0) !== (b.z || 0)) return (a.z || 0) - (b.z || 0);
+      return (b.x || 0) - (a.x || 0);
+    });
+
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const timeStr = today.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+
+  const html = `<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8">
+<title>Packing List - ${escape(projectName)}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color:#1f2937; background:white; padding:14mm; font-size: 10px; line-height:1.4; }
+  .docHeader { display:flex; justify-content:space-between; border-bottom:3px solid #0f172a; padding-bottom:10px; margin-bottom:14px; }
+  .docHeader .left h1 { font-size:22px; letter-spacing:-0.5px; color:#0f172a; }
+  .docHeader .left .sub { font-size:10px; color:#64748b; margin-top:3px; }
+  .docHeader .right { text-align:right; font-size:9px; color:#64748b; }
+  .docHeader .right .docNo { font-size:14px; color:#0f172a; font-weight:800; margin-bottom:4px; }
+  .info { display:grid; grid-template-columns:repeat(3, 1fr); gap:0; border:1px solid #e5e7eb; margin-bottom:12px; }
+  .info .cell { padding:8px 10px; border-right:1px solid #e5e7eb; }
+  .info .cell:last-child { border-right:none; }
+  .info .cell h3 { font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; font-weight:700; margin-bottom:4px; }
+  .info .cell p { font-size:11px; font-weight:600; color:#0f172a; }
+  .totals { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:12px; }
+  .totals .stat { background:#f1f5f9; border-left:3px solid #fbbf24; padding:8px 10px; }
+  .totals .stat span { font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
+  .totals .stat b { display:block; font-size:16px; color:#0f172a; margin-top:3px; font-weight:800; }
+  h2.section { font-size:12px; color:#0f172a; margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid #cbd5e1; letter-spacing:0.3px; }
+  table { width:100%; border-collapse: collapse; font-size: 9px; }
+  th { background:#0f172a; color:white; text-align:left; padding:5px 6px; font-weight:600; font-size:9px; text-transform:uppercase; letter-spacing:0.3px; }
+  td { padding:4px 6px; border-bottom: 0.5px solid #e5e7eb; }
+  tbody tr:nth-child(even) { background:#f9fafb; }
+  tfoot td { background:#f1f5f9; font-weight:700; border-top:2px solid #0f172a; }
+  .seqStep { background:#fbbf24; color:#0f172a; font-weight:800; padding:2px 6px; border-radius:4px; display:inline-block; min-width:18px; text-align:center; }
+  .badge { display:inline-block; padding:1px 5px; border-radius:3px; font-size:8px; font-weight:700; }
+  .badge.stack { background:#dbeafe; color:#1e40af; }
+  .badge.prio { background:#fee2e2; color:#991b1b; }
+  .signatures { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-top:24px; padding-top:14px; border-top:1px solid #cbd5e1; }
+  .signatures .sig { font-size:9px; }
+  .signatures .sig .line { border-top:1px solid #0f172a; padding-top:3px; margin-top:30px; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; }
+  .footer { margin-top:18px; padding-top:8px; border-top:1px solid #e5e7eb; font-size:8px; color:#9ca3af; text-align:center; }
+  @page { size: A4; margin:10mm; }
+  @media print { .noprint { display:none !important; } }
+  .actBar { position:fixed; top:8px; right:8px; background:#0f172a; padding:8px 12px; border-radius:8px; display:flex; gap:8px; }
+  .actBar button { background:#fbbf24; color:#0f172a; border:none; padding:6px 14px; border-radius:6px; font-weight:700; cursor:pointer; font-size:12px; }
+  .actBar .secondary { background:#1e293b; color:white; }
+</style>
+</head><body>
+
+<div class="actBar noprint">
+  <button onclick="window.print()">🖨️ Stampa / Salva PDF</button>
+  <button class="secondary" onclick="window.close()">✕ Chiudi</button>
+</div>
+
+<div class="docHeader">
+  <div class="left">
+    <h1>PACKING LIST</h1>
+    <div class="sub">Distinta di carico container</div>
+  </div>
+  <div class="right">
+    <div class="docNo">N° ${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}-${Math.floor(Math.random()*1000).toString().padStart(3,"0")}</div>
+    <div>${dateStr} · ${timeStr}</div>
+  </div>
+</div>
+
+<div class="info">
+  <div class="cell">
+    <h3>Riferimento</h3>
+    <p>${escape(projectName)}</p>
+  </div>
+  <div class="cell">
+    <h3>Veicolo / Container</h3>
+    <p>${escape(c.name)}</p>
+  </div>
+  <div class="cell">
+    <h3>Dimensioni interne</h3>
+    <p>${c.length} × ${c.width} × ${c.height} mm</p>
+  </div>
+</div>
+
+<div class="totals">
+  <div class="stat"><span>Totale colli</span><b>${state.placed.length}</b></div>
+  <div class="stat"><span>Peso totale</span><b>${totalKg.toLocaleString("it-IT")} kg</b></div>
+  <div class="stat"><span>Volume</span><b>${totalVol.toFixed(2)} m³</b></div>
+  <div class="stat"><span>Modelli distinti</span><b>${summary.length}</b></div>
+</div>
+
+<h2 class="section">Riepilogo per modello</h2>
+<table>
+  <thead>
+    <tr><th>Serie</th><th>Modello</th><th>Dim. mm (L×W×H)</th><th style="text-align:right">Q.tà</th><th style="text-align:right">Peso unit. kg</th><th style="text-align:right">Peso tot. kg</th></tr>
+  </thead>
+  <tbody>
+    ${summary.map(s => `<tr>
+      <td>${escape(s.series)}</td>
+      <td><b>${escape(s.model)}</b></td>
+      <td>${s.length} × ${s.width} × ${s.height}</td>
+      <td style="text-align:right"><b>${s.qty}</b></td>
+      <td style="text-align:right">${s.weight}</td>
+      <td style="text-align:right"><b>${s.totalKg.toLocaleString("it-IT")}</b></td>
+    </tr>`).join("")}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="3">TOTALE</td><td style="text-align:right">${state.placed.length}</td><td></td><td style="text-align:right">${totalKg.toLocaleString("it-IT")} kg</td></tr>
+  </tfoot>
+</table>
+
+<h2 class="section">Distinta dettagliata (${state.placed.length} colli)</h2>
+<table>
+  <thead>
+    <tr><th>#</th><th>Modello</th><th>Matricola</th><th>L mm</th><th>W mm</th><th>H mm</th><th>kg</th><th>Posizione X-Y-Z</th><th>Note</th></tr>
+  </thead>
+  <tbody>
+    ${state.placed.map((p, i) => `<tr>
+      <td><b>${i + 1}</b></td>
+      <td><b>${escape(p.model || p.name)}</b><br><span style="color:#64748b;font-size:8px">${escape(p.series || "")}</span></td>
+      <td>${escape(p.serialNumber || "—")}</td>
+      <td>${p.length}</td>
+      <td>${p.width}</td>
+      <td>${p.height}</td>
+      <td><b>${p.weight}</b></td>
+      <td>${p.x} · ${p.y} · ${p.z || 0}</td>
+      <td>
+        ${(p.z||0) > 0 ? '<span class="badge stack">⬆ IMPILATA</span> ' : ''}
+        ${p.priority ? '<span class="badge prio">PRIORITÀ ' + p.priority + '</span> ' : ''}
+        ${p.rotation ? '↻ ruotata' : ''}
+      </td>
+    </tr>`).join("")}
+  </tbody>
+</table>
+
+<h2 class="section">Sequenza di carico (dal fondo verso la porta)</h2>
+<table>
+  <thead>
+    <tr><th style="width:40px">Step</th><th>Operazione</th><th>Modello</th><th>Posizione X-Y-Z</th><th>kg</th></tr>
+  </thead>
+  <tbody>
+    ${sequence.map((p, step) => {
+      const distFromDoor = (p.x / 1000).toFixed(1);
+      let op;
+      if ((p.z || 0) > 0 && p.stackedOn) op = `Impila sopra ${getIndexOf(p.stackedOn)}`;
+      else if (p.priority > 0)            op = `Priorità ${p.priority} (carica per primo)`;
+      else if (p.x === 0)                  op = `Posiziona contro fondo`;
+      else                                  op = `Posiziona a ${distFromDoor}m dalla porta`;
+      return `<tr>
+        <td><span class="seqStep">${step + 1}</span></td>
+        <td>${op}</td>
+        <td>#${p.originalIndex + 1} — ${escape(p.model || p.name)}</td>
+        <td>${p.x} · ${p.y} · ${p.z || 0}</td>
+        <td><b>${p.weight}</b></td>
+      </tr>`;
+    }).join("")}
+  </tbody>
+</table>
+
+<div class="signatures">
+  <div class="sig"><div class="line">Responsabile carico</div></div>
+  <div class="sig"><div class="line">Autista / vettore</div></div>
+  <div class="sig"><div class="line">Cliente / destinatario</div></div>
+</div>
+
+<div class="footer">
+  Documento generato automaticamente da Container Loading Planner · ${dateStr} ${timeStr}<br>
+  Le posizioni indicate sono indicative; la verifica finale (fissaggi, distribuzione del peso, blocchi anti-movimento) resta a carico del personale di carico.
+</div>
+
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) {
+    alert("Apri il blocco popup del browser per generare il packing list.");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+function buildLayoutSvg(c) {
+  const svgW = 1050;
+  const svgH = Math.max(180, Math.round(svgW * c.width / c.length));
+  const s = svgW / c.length;
+  const ground = state.placed.filter(p => (p.z || 0) === 0);
+  const stacked = state.placed.filter(p => (p.z || 0) > 0);
+
+  const groundRects = ground.map((p, idx) => {
+    const i = state.placed.indexOf(p) + 1;
+    const f = footprint(p);
+    return `<g>
+      <rect x="${(p.x*s).toFixed(1)}" y="${(p.y*s).toFixed(1)}" width="${(f.l*s).toFixed(1)}" height="${(f.w*s).toFixed(1)}" fill="${p.color}" stroke="#111827" stroke-width="1.5"/>
+      <text x="${(p.x*s+5).toFixed(1)}" y="${(p.y*s+14).toFixed(1)}" font-size="11" fill="#fff" font-weight="700">${i} - ${escape(p.name)}</text>
+      <text x="${(p.x*s+5).toFixed(1)}" y="${(p.y*s+28).toFixed(1)}" font-size="9" fill="#fff">${p.length} × ${p.width} mm · ${p.weight} kg</text>
+    </g>`;
+  }).join("");
+
+  // casse impilate disegnate in legenda (non visibili dall'alto)
+  const stackBadges = stacked.map(p => {
+    const i = state.placed.indexOf(p) + 1;
+    const baseIdx = state.placed.findIndex(q => q.id === p.stackedOn) + 1;
+    return `${i}↑${baseIdx}`;
+  }).join(", ");
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${svgW} ${svgH+20}">
+      <rect x="0" y="0" width="${svgW}" height="${svgH}" fill="#fff" stroke="#111827" stroke-width="3"/>
+      <rect x="0" y="0" width="${Math.max(12, 28*s)}" height="${svgH}" fill="#e0f2fe" stroke="#075985" stroke-width="1.5"/>
+      <text x="8" y="18" font-size="11" fill="#075985" font-weight="700">PORTA</text>
+      ${groundRects}
+      ${stacked.length ? `<text x="0" y="${svgH+15}" font-size="10" fill="#7c2d12">Impilate: ${escape(stackBadges)}</text>` : ""}
+    </svg>
+  `;
+}
+
+function escape(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+
+__M.buildAndPrint = buildAndPrint;
+__M.generatePackingList = generatePackingList;
+
+})();
+
+/* ====== js/main.js ====== */
+(function(){
+/* ============================================================================
+   main.js — bootstrap dell'applicazione V7
+   ----------------------------------------------------------------------------
+   Orchestratore: carica state, inizializza moduli, registra callback render.
+   ========================================================================== */
+
+const { state, CONTAINERS, footprint, save, load, pushHistory, overlaps, isInside, activeContainer } = __M;
+const { DEFAULT_ASSETS } = __M;
+const { optimizeLayout } = __M;
+const { summary } = __M;
+const { render2D, init: init2D } = __M.view2d;
+const { render3D, init: init3D } = __M.view3d;
+const { init: initUX, renderSelectedPanel } = __M.ux;
+const { buildAndPrint, generatePackingList } = __M;
+
+const $ = id => document.getElementById(id);
+
+function isThreeView() {
+  return $("view3d")?.style.display !== "none";
+}
+
+function render() {
+  const view = $("viewSide")?.style.display === "" ? "side"
+             : $("view3d")?.style.display === ""   ? "3d"
+             : "2d";
+  if (view === "3d")        render3D();
+  else if (view === "side") renderSideView();
+  else                       render2D();
+  renderSelectedPanel();
+  renderHeaderMetrics();
+  renderWarnings();
+  renderTable();
+}
+
+/* ---------------------------------------------------------- header metrics */
+function renderHeaderMetrics() {
+  const c = activeContainer();
+  if (!c) return;
+  $("cLength").textContent = c.length + " mm";
+  $("cWidth").textContent  = c.width  + " mm";
+  $("cHeight").textContent = c.height + " mm";
+  $("cWeight").textContent = c.maxWeight.toLocaleString("it-IT") + " kg";
+
+  const totalW = state.placed.reduce((s, p) => s + Number(p.weight || 0), 0);
+  const usedArea = state.placed.reduce((s, p) => {
+    const f = footprint(p);
+    return s + ((p.z || 0) === 0 ? f.l * f.w : 0);
+  }, 0);
+  const areaPct = c.length * c.width > 0 ? Math.round(usedArea / (c.length * c.width) * 100) : 0;
+
+  $("areaPct").textContent     = areaPct + "%";
+  $("totalWeight").textContent = totalW.toLocaleString("it-IT") + " kg";
+  $("itemCount").textContent   = state.placed.length;
+
+  // metriche fisiche
+  const sum = summary(state.placed, c);
+  $("cogX").textContent = sum.cog.x.toFixed(0) + " mm";
+  $("cogY").textContent = sum.cog.y.toFixed(0) + " mm";
+  $("cogZ").textContent = sum.cog.z.toFixed(0) + " mm";
+  $("axleFront").textContent = Math.round(sum.axles.front).toLocaleString("it-IT") + " kg";
+  $("axleRear").textContent  = Math.round(sum.axles.rear ).toLocaleString("it-IT") + " kg";
+
+  // colora baricentro X/Y in funzione di tolleranze
+  const cogXBox = $("cogX")?.parentElement;
+  const cogYBox = $("cogY")?.parentElement;
+  const cogZBox = $("cogZ")?.parentElement;
+  if (cogXBox) cogXBox.style.borderColor = sum.cogEval.issues.some(i=>i.includes("longitudinale")) ? "#dc2626" : "#eef0f2";
+  if (cogYBox) cogYBox.style.borderColor = sum.cogEval.issues.some(i=>i.includes("trasversale"))   ? "#dc2626" : "#eef0f2";
+  if (cogZBox) cogZBox.style.borderColor = sum.cogEval.issues.some(i=>i.includes("verticale"))     ? "#dc2626" : "#eef0f2";
+}
+
+/* ---------------------------------------------------------- warnings */
+function renderWarnings() {
+  const c = activeContainer();
+  const w = $("warnings");
+  const issues = [];
+
+  // sovrapposizioni a stessa quota
+  for (let i = 0; i < state.placed.length; i++) {
+    for (let j = i + 1; j < state.placed.length; j++) {
+      const a = state.placed[i], b = state.placed[j];
+      if ((a.z || 0) !== (b.z || 0)) continue;
+      if (overlaps(a, b)) issues.push(`Sovrapposizione: #${i+1} ${a.name} ↔ #${j+1} ${b.name}`);
+    }
+  }
+  // fuori container
+  state.placed.forEach((p, i) => {
+    if (!isInside(p, c)) issues.push(`Fuori container: #${i+1} ${p.name}`);
+  });
+
+  // peso totale
+  const totalW = state.placed.reduce((s, p) => s + Number(p.weight || 0), 0);
+  if (totalW > c.maxWeight) issues.push(`Peso totale ${totalW.toLocaleString("it-IT")} kg supera il payload ${c.maxWeight.toLocaleString("it-IT")} kg`);
+
+  // baricentro
+  const sum = summary(state.placed, c);
+  sum.cogEval.issues.forEach(s => issues.push(s));
+
+  // stacking: cassa che dovrebbe essere su una base ma la base non c'è più
+  state.placed.forEach((p, i) => {
+    if (p.stackedOn && !state.placed.find(b => b.id === p.stackedOn)) {
+      issues.push(`#${i+1} ${p.name}: base di impilamento non trovata`);
+    }
+  });
+
+  if (!issues.length) {
+    w.innerHTML = `<div class="ok">✓ Nessuna sovrapposizione, fuori sagoma, eccesso peso o sbilanciamento baricentro.</div>`;
+  } else {
+    w.innerHTML = `<div class="warnings">${issues.map(s => `<div>⚠ ${escape(s)}</div>`).join("")}</div>`;
+  }
+}
+
+/* ---------------------------------------------------------- table */
+function renderTable() {
+  const tbody = $("loadTable");
+  if (!tbody) return;
+  if (!state.placed.length) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:24px;font-style:normal">Nessuna cassa nel container. Aggiungi un asset dalla libreria per iniziare.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = state.placed.map((p, i) => `<tr>
+    <td>${i + 1}</td>
+    <td>${escape(p.series || "")}</td>
+    <td>${escape(p.model || p.name || "")}${p.inches ? ` <span style="color:var(--text-3);font-weight:400">${escape(p.inches)}"</span>` : ""}</td>
+    <td><input class="tableInput" value="${escape(p.serialNumber || "")}" placeholder="—" data-id="${p.id}" data-field="serialNumber"></td>
+    <td><input class="tableInput" value="${escape(p.gauge || "")}" placeholder="—" data-id="${p.id}" data-field="gauge"></td>
+    <td>${p.length} × ${p.width} × ${p.height}</td>
+    <td>${p.weight}</td>
+    <td>${p.x}</td>
+    <td>${p.y}</td>
+    <td>${p.z || 0}</td>
+    <td>${p.rotation || 0}°</td>
+  </tr>`).join("");
+
+  tbody.querySelectorAll(".tableInput").forEach(inp => {
+    inp.addEventListener("change", () => {
+      const id = inp.dataset.id, field = inp.dataset.field;
+      const p = state.placed.find(x => x.id === id);
+      if (!p) return;
+      pushHistory();
+      p[field] = inp.value;
+      save();
+    });
+  });
+}
+
+/* ---------------------------------------------------------- AI optimize button */
+function runOptimize() {
+  const c = activeContainer();
+  const status = $("optimizerStatus");
+  if (!state.placed.length) { alert("Inserisci almeno una cassa nel container."); return; }
+  status.style.display = "block";
+  status.textContent = "Sto provando combinazioni di ordine, rotazione, impilamento...";
+
+  setTimeout(() => {
+    pushHistory();
+    const result = optimizeLayout(state.placed, c, { allowStacking: true });
+    state.placed = result.placed.map(p => ({
+      ...p,
+      // normalizzo: length/width fisse (cassa), rotation determina ingombro
+      length: p.length, width: p.width
+    }));
+    state.selectedId = null;
+    state.lastStrategy = result.strategy;
+    save();
+
+    let msg = `✓ Disposte ${result.placed.length} casse`;
+    if (result.stackedCount) msg += ` (di cui ${result.stackedCount} impilate)`;
+    msg += `. Ingombro: ${(result.boundingLength/1000).toFixed(2)} × ${(result.boundingWidth/1000).toFixed(2)} m. Strategia: ${result.strategy}.`;
+    if (result.failed.length) msg += ` ⚠ ${result.failed.length} non entrano nel container.`;
+    status.textContent = msg;
+
+    render();
+  }, 30);
+}
+
+/* ---------------------------------------------------------- export/import */
+function exportJSON() {
+  const payload = {
+    version: 7,
+    tool: "Container Loading Planner",
+    projectName: state.projectName,
+    containerKey: state.containerKey,
+    assets: state.assets,
+    placed: state.placed,
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = safeFileName(state.projectName || "Container_Layout_" + state.containerKey) + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.containerKey) state.containerKey = data.containerKey;
+      if (Array.isArray(data.assets)) state.assets = data.assets;
+      if (Array.isArray(data.placed)) state.placed = data.placed.map(p => ({...p, rotation: p.rotation || 0}));
+      state.projectName = data.projectName || "";
+      const pn = $("projectNameInput");
+      if (pn) pn.value = state.projectName;
+      $("containerSelect").value = state.containerKey;
+      save();
+      render();
+    } catch (err) { alert("File non valido: " + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function safeFileName(name) {
+  return String(name).replace(/[^A-Za-z0-9_\-. ]/g, "_").replace(/\s+/g, "_").slice(0, 80);
+}
+
+/* ---------------------------------------------------------- bootstrap */
+function bootstrap() {
+  // Imposta userKey se già disponibile da modulo cloud
+  if (typeof window !== "undefined" && window.__pendingUserKey) {
+    state.userKey = window.__pendingUserKey;
+  }
+  const restored = load();
+  if (!restored || !state.assets.length) {
+    state.assets = DEFAULT_ASSETS.map(a => ({...a}));
+  }
+
+  // Sidebar resizer: applica larghezza salvata e gestisce drag
+  const savedW = parseInt(localStorage.getItem("clp_sidebar_w") || "360", 10);
+  if (document.documentElement && document.documentElement.style) {
+    document.documentElement.style.setProperty("--sidebar-w", savedW + "px");
+  }
+  const resizer = $("layoutResizer");
+  if (resizer) {
+    let dragging = false;
+    resizer.addEventListener("pointerdown", e => {
+      dragging = true;
+      try { resizer.setPointerCapture(e.pointerId); } catch(_) {}
+      document.body.style.userSelect = "none";
+    });
+    resizer.addEventListener("pointermove", e => {
+      if (!dragging) return;
+      const layout = document.querySelector(".layout");
+      const left = layout?.getBoundingClientRect().left || 0;
+      let w = e.clientX - left - 12;
+      w = Math.max(280, Math.min(720, w));
+      document.documentElement.style.setProperty("--sidebar-w", w + "px");
+    });
+    resizer.addEventListener("pointerup", e => {
+      if (!dragging) return;
+      dragging = false;
+      try { resizer.releasePointerCapture(e.pointerId); } catch(_) {}
+      document.body.style.userSelect = "";
+      const w = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--sidebar-w"), 10);
+      if (w) localStorage.setItem("clp_sidebar_w", String(w));
+      render();
+    });
+  }
+
+  init2D({ onChange: render });
+  init3D({ onChange: render });
+  initUX({ onChange: render });
+
+  $("autoPackBtn")  ?.addEventListener("click", runOptimize);
+  $("pdfBtn")       ?.addEventListener("click", buildAndPrint);
+  $("packBtn")      ?.addEventListener("click", generatePackingList);
+  $("exportBtn")    ?.addEventListener("click", exportJSON);
+  $("importFile")   ?.addEventListener("change", e => { if (e.target.files[0]) importJSON(e.target.files[0]); });
+
+  // bottoni rotazione globali
+  $("rotateBtn")    ?.addEventListener("click", () => {
+    if (!state.selectedId) return;
+    pushHistory();
+    const p = state.placed.find(x => x.id === state.selectedId);
+    if (p) { p.rotation = ((p.rotation || 0) + 90) % 180; save(); render(); }
+  });
+  $("rotateBackBtn")?.addEventListener("click", () => {
+    if (!state.selectedId) return;
+    pushHistory();
+    const p = state.placed.find(x => x.id === state.selectedId);
+    if (p) { p.rotation = ((p.rotation || 0) + 90) % 180; save(); render(); }
+  });
+  $("rotateAllBtn") ?.addEventListener("click", () => {
+    pushHistory();
+    state.placed.forEach(p => p.rotation = ((p.rotation || 0) + 90) % 180);
+    save();
+    render();
+  });
+  $("precisionFixBtn")?.addEventListener("click", () => {
+    const c = activeContainer();
+    pushHistory();
+    state.placed.forEach(p => {
+      const f = footprint(p);
+      p.x = Math.max(0, Math.min(p.x, c.length - f.l));
+      p.y = Math.max(0, Math.min(p.y, c.width  - f.w));
+    });
+    save();
+    render();
+  });
+
+  // controlli 3D
+  $("rotLeftBtn") ?.addEventListener("click", () => { state.three.rotZ -= 15; render(); });
+  $("rotRightBtn")?.addEventListener("click", () => { state.three.rotZ += 15; render(); });
+  $("tiltUpBtn")  ?.addEventListener("click", () => { state.three.zoom = Math.min(3, state.three.zoom * 1.15); render(); });
+  $("tiltDownBtn")?.addEventListener("click", () => { state.three.zoom = Math.max(0.3, state.three.zoom / 1.15); render(); });
+
+  render();
+}
+
+function escape(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+document.addEventListener("DOMContentLoaded", bootstrap);
+
+
+
+
+})();
+})();
+
+</script>
+
+<!-- Cloud sync -->
+<script type="module">
+import { requireAuth, signOut, loadProject, saveProject, createShareLink, revokeShareLink } from "/lib/auth.js";
+
+const STORAGE_KEY = "containerLoadingPlannerV9";
+
+const user = await requireAuth();
+if (user) {
+  document.getElementById("cloudUserEmail").textContent = user.email;
+  const av = document.getElementById("cloudAvatar");
+  if (av) av.textContent = user.email.slice(0, 2);
+  const dde = document.getElementById("userDropdownEmail");
+  if (dde) dde.textContent = user.email;
+
+  // Reset libreria/stato locale se utente cambiato O se non c'è userKey salvato
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      // Se non c'è userKey nei dati salvati (vecchio formato) o è diverso → reset
+      if (!data.userKey || data.userKey !== user.id) {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+      }
+    }
+    // Imposta userKey nello state e marca payload con esso
+    if (window.__M && window.__M.state) {
+      window.__M.state.userKey = user.id;
+      // Forza salvataggio con userKey corretto
+      if (window.__M.save) window.__M.save();
+    } else {
+      window.__pendingUserKey = user.id;
+    }
+  } catch(_) {}
+}
+
+document.getElementById("cloudLogoutBtn").addEventListener("click", e => {
+  e.preventDefault();
+  signOut();
+});
+
+const status = document.getElementById("cloudStatus");
+const nameInput = document.getElementById("cloudProjectName");
+const saveBtn = document.getElementById("cloudSaveBtn");
+const shareBtn = document.getElementById("cloudShareBtn");
+
+let currentProjectId = null;
+
+// Caricamento progetto se ?id=...
+const params = new URLSearchParams(location.search);
+const projectId = params.get("id");
+
+async function loadFromCloud(id) {
+  status.textContent = "Caricamento…";
+  try {
+    const p = await loadProject(id);
+    currentProjectId = p.id;
+    nameInput.value = p.name || "";
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(p.payload));
+    status.textContent = `Aperto: ${p.name}`;
+    if (!sessionStorage.getItem("clp_loaded_" + id)) {
+      sessionStorage.setItem("clp_loaded_" + id, "1");
+      location.reload();
+    }
+  } catch (err) {
+    status.textContent = "Errore caricamento";
+    alert("Errore: " + err.message);
+  }
+}
+
+if (projectId) {
+  await loadFromCloud(projectId);
+} else {
+  status.textContent = "Nuovo progetto";
+}
+
+saveBtn.addEventListener("click", async () => {
+  const name = nameInput.value.trim() || "Senza nome";
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) { alert("Niente da salvare."); return; }
+  let payload;
+  try { payload = JSON.parse(raw); } catch (e) { alert("Stato locale corrotto."); return; }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Salvataggio…";
+  try {
+    const saved = await saveProject({
+      id: currentProjectId,
+      name,
+      container_key: payload.containerKey || "40ft",
+      payload
+    });
+    currentProjectId = saved.id;
+    const newUrl = location.pathname + "?id=" + saved.id;
+    history.replaceState(null, "", newUrl);
+    status.textContent = `✓ Salvato: ${saved.name}`;
+    saveBtn.textContent = "✓ Salvato";
+    setTimeout(() => { saveBtn.textContent = "💾 Salva in cloud"; }, 2000);
+  } catch (err) {
+    alert("Errore: " + err.message);
+    saveBtn.textContent = "💾 Salva in cloud";
+  } finally {
+    saveBtn.disabled = false;
+  }
+});
+
+shareBtn.addEventListener("click", async () => {
+  if (!currentProjectId) {
+    alert("Salva prima il progetto in cloud, poi potrai condividerlo.");
+    return;
+  }
+  shareBtn.disabled = true;
+  shareBtn.textContent = "Generazione…";
+  try {
+    const token = await createShareLink(currentProjectId);
+    const url = location.origin + "/shared.html?token=" + token;
+
+    // Modal con il link
+    const m = document.createElement("div");
+    m.className = "modalBackdrop";
+    m.style.display = "flex";
+    m.innerHTML = `<div class="modal" style="max-width:520px">
+      <div class="modalHead">
+        <h2>Condividi questo piano di carico</h2>
+        <button class="closeShareModal">✕</button>
+      </div>
+      <p style="color:#64748b;font-size:13px;margin-bottom:12px">Chiunque abbia questo link può visualizzare il piano in sola lettura, anche senza account.</p>
+      <input readonly value="${url}" style="width:100%;padding:10px;font-family:monospace;font-size:11px;border:1px solid #ddd;border-radius:6px;background:#f9fafb">
+      <div class="actions" style="justify-content:space-between;margin-top:14px">
+        <button class="btn ghost dangerBtn revokeShareBtn" style="background:white;border-color:#fecaca;color:#dc2626">Revoca link</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn ghost closeShareModal">Chiudi</button>
+          <button class="btn primary copyShareBtn">Copia link</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(m);
+    m.querySelectorAll(".closeShareModal").forEach(b => b.addEventListener("click", () => m.remove()));
+    m.querySelector(".copyShareBtn").addEventListener("click", () => {
+      navigator.clipboard.writeText(url);
+      m.querySelector(".copyShareBtn").textContent = "✓ Copiato";
+    });
+    m.querySelector(".revokeShareBtn").addEventListener("click", async () => {
+      if (!confirm("Revocare il link? Chi ha già il link non potrà più aprirlo.")) return;
+      try { await revokeShareLink(currentProjectId); m.remove(); alert("Link revocato"); }
+      catch (e) { alert("Errore: " + e.message); }
+    });
+  } catch (err) {
+    alert("Errore: " + err.message);
+  } finally {
+    shareBtn.disabled = false;
+    shareBtn.textContent = "🔗 Condividi";
+  }
+});
+</script>
+</body>
+</html>
