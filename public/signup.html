@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crea account — Container Loading Planner</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles/site.css">
+</head>
+<body>
+
+<div class="authWrap">
+  <div class="authCard">
+    <a href="/" class="brand">
+      <svg width="36" height="36" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="2" y="2" width="36" height="36" rx="8" fill="#0a1628"/>
+        <rect x="7" y="11" width="26" height="18" fill="none" stroke="white" stroke-width="1.4"/>
+        <rect x="9" y="13" width="9" height="6" fill="white"/>
+        <rect x="19" y="13" width="6" height="6" fill="white" opacity="0.8"/>
+        <rect x="26" y="13" width="6" height="6" fill="white" opacity="0.6"/>
+        <rect x="9" y="20" width="6" height="8" fill="white" opacity="0.7"/>
+        <rect x="16" y="20" width="9" height="4" fill="white" opacity="0.85"/>
+        <rect x="16" y="25" width="4" height="3" fill="white" opacity="0.5"/>
+        <rect x="21" y="25" width="4" height="3" fill="white" opacity="0.5"/>
+        <rect x="26" y="20" width="6" height="8" fill="white" opacity="0.9"/>
+      </svg>
+      <span>Container Loading Planner</span>
+    </a>
+
+    <h1 id="title">Crea il tuo account</h1>
+    <p class="sub" id="subtitle">Gratis. Nessuna carta richiesta.</p>
+
+    <div id="msg"></div>
+
+    <form id="signupForm">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">Password (min 8 caratteri)</label>
+        <input id="password" type="password" required minlength="8" autocomplete="new-password">
+      </div>
+      <div id="companySection">
+        <div class="field">
+          <label for="companyName">Nome azienda</label>
+          <input id="companyName" type="text" required>
+        </div>
+        <div class="field">
+          <label for="companyCountry">Paese</label>
+          <select id="companyCountry" required>
+            <option value="">Seleziona...</option>
+            <option value="IT">Italia</option>
+            <option value="DE">Germania</option>
+            <option value="FR">Francia</option>
+            <option value="ES">Spagna</option>
+            <option value="PT">Portogallo</option>
+            <option value="GB">Regno Unito</option>
+            <option value="NL">Paesi Bassi</option>
+            <option value="BE">Belgio</option>
+            <option value="CH">Svizzera</option>
+            <option value="AT">Austria</option>
+            <option value="PL">Polonia</option>
+            <option value="CZ">Repubblica Ceca</option>
+            <option value="GR">Grecia</option>
+            <option value="TR">Turchia</option>
+            <option value="US">Stati Uniti</option>
+            <option value="CA">Canada</option>
+            <option value="MX">Messico</option>
+            <option value="BR">Brasile</option>
+            <option value="AR">Argentina</option>
+            <option value="CN">Cina</option>
+            <option value="JP">Giappone</option>
+            <option value="KR">Corea del Sud</option>
+            <option value="IN">India</option>
+            <option value="AE">Emirati Arabi Uniti</option>
+            <option value="SA">Arabia Saudita</option>
+            <option value="ZA">Sudafrica</option>
+            <option value="AU">Australia</option>
+            <option value="OTHER">Altro</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn primary" id="submitBtn">Crea account</button>
+    </form>
+
+    <p class="authAlt">
+      Hai già un account? <a href="/login.html">Accedi</a>
+    </p>
+  </div>
+</div>
+
+<script type="module">
+import { supabase, currentUser, acceptInvitation } from "/lib/auth.js";
+
+const u = await currentUser();
+const params = new URLSearchParams(location.search);
+const inviteToken = params.get("invite");
+
+if (u && !inviteToken) location.href = "/dashboard.html";
+
+if (inviteToken) {
+  document.getElementById("title").textContent = "Accetta l'invito";
+  document.getElementById("subtitle").textContent = "Sei stato invitato a collaborare in un'azienda.";
+  document.getElementById("companySection").style.display = "none";
+}
+
+const form = document.getElementById("signupForm");
+const msg = document.getElementById("msg");
+const btn = document.getElementById("submitBtn");
+
+function showMsg(text, kind = "error") {
+  msg.innerHTML = `<div class="authMessage ${kind}">${text}</div>`;
+}
+
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  btn.disabled = true; btn.textContent = "Creazione in corso…";
+  msg.innerHTML = "";
+
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    showMsg("Errore: " + error.message);
+    btn.disabled = false; btn.textContent = "Crea account";
+    return;
+  }
+
+  if (inviteToken) {
+    const { error: invErr } = await acceptInvitation(inviteToken);
+    if (invErr) {
+      showMsg("Account creato ma errore nell'accettare l'invito: " + invErr.message);
+      btn.disabled = false; btn.textContent = "Crea account";
+      return;
+    }
+  } else {
+    const companyName = document.getElementById("companyName").value.trim();
+    const companyCountry = document.getElementById("companyCountry").value;
+    if (!companyName || !companyCountry) {
+      showMsg("Compila nome azienda e paese.");
+      btn.disabled = false; btn.textContent = "Crea account";
+      return;
+    }
+    const { error: cErr } = await supabase.from("companies").insert({
+      name: companyName, country: companyCountry, created_by: data.user.id
+    });
+    if (cErr) {
+      showMsg("Account creato ma errore: " + cErr.message);
+      btn.disabled = false; btn.textContent = "Crea account";
+      return;
+    }
+  }
+
+  if (data.session) location.href = "/dashboard.html";
+  else {
+    showMsg("Account creato. Controlla la tua email per confermare e poi accedi.", "success");
+    btn.textContent = "Account creato";
+  }
+});
+</script>
+</body>
+</html>
