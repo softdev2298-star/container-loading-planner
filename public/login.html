@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accedi — Container Loading Planner</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles/site.css">
+</head>
+<body>
+<div class="authPage">
+  <aside class="authAside">
+    <a href="/" class="brand"><span class="logoMark"><svg viewBox="0 0 40 40"><rect x="5" y="9" width="30" height="22" rx="2" fill="none" stroke="#07111f" stroke-width="2"/><rect x="8" y="12" width="10" height="7" fill="#f5b301"/><rect x="20" y="12" width="6" height="7" fill="#f5b301"/><rect x="28" y="12" width="4" height="7" fill="#f5b301"/><rect x="8" y="21" width="7" height="7" fill="#f5b301"/><rect x="17" y="21" width="9" height="7" fill="#f5b301"/><rect x="28" y="21" width="4" height="7" fill="#f5b301"/></svg></span><span>Container Loading Planner<small>Industrial cargo system</small></span></a>
+    <div class="authAsideContent">
+      <h2>Ritrova layout, packing list e progetti salvati.</h2>
+      <p>Accedi al tuo ambiente cloud per continuare a lavorare sui piani di carico, condividere progetti e generare documenti operativi.</p>
+      <div class="authMiniCards"><div>✓ Progetti salvati in cloud</div><div>✓ Team e link condivisibili</div><div>✓ PDF e packing list sempre disponibili</div></div>
+    </div>
+  </aside>
+  <main class="authWrap">
+    <div class="authCard">
+      <a href="/" class="brand"><span class="logoMark"><svg viewBox="0 0 40 40"><rect x="5" y="9" width="30" height="22" rx="2" fill="none" stroke="#fff" stroke-width="2"/><rect x="8" y="12" width="10" height="7" fill="#f5b301"/><rect x="20" y="12" width="6" height="7" fill="#f5b301"/><rect x="28" y="12" width="4" height="7" fill="#f5b301"/><rect x="8" y="21" width="7" height="7" fill="#f5b301"/><rect x="17" y="21" width="9" height="7" fill="#f5b301"/><rect x="28" y="21" width="4" height="7" fill="#f5b301"/></svg></span><span>Container Loading Planner</span></a>
+      <h1>Bentornato</h1>
+      <p class="sub">Accedi per aprire dashboard, progetti e team.</p>
+      <div id="msg"></div>
+      <form id="loginForm">
+        <div class="field"><label for="email">Email</label><input id="email" type="email" required autocomplete="email"></div>
+        <div class="field"><label for="password">Password</label><input id="password" type="password" required autocomplete="current-password"></div>
+        <button type="submit" class="btn primary" id="submitBtn">Accedi</button>
+      </form>
+      <p class="authAlt">Non hai un account? <a href="/signup.html">Registrati gratis</a></p>
+      <p class="authAlt" style="margin-top:8px"><a href="#" id="forgotLink">Ho dimenticato la password</a></p>
+    </div>
+  </main>
+</div>
+<script type="module">
+import { supabase, currentUser } from "/lib/auth.js";
+
+const u = await currentUser();
+if (u) {
+  const params = new URLSearchParams(location.search);
+  location.href = params.get("redirect") || "/dashboard.html";
+}
+
+const form = document.getElementById("loginForm");
+const msg = document.getElementById("msg");
+const btn = document.getElementById("submitBtn");
+
+function showMsg(text, kind="error") {
+  msg.innerHTML = `<div class="authMessage ${kind}">${text}</div>`;
+}
+
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  btn.disabled = true;
+  btn.textContent = "Accesso in corso…";
+  msg.innerHTML = "";
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    showMsg("Errore: " + error.message);
+    btn.disabled = false;
+    btn.textContent = "Accedi";
+    return;
+  }
+  const params = new URLSearchParams(location.search);
+  location.href = params.get("redirect") || "/dashboard.html";
+});
+
+document.getElementById("forgotLink").addEventListener("click", async e => {
+  e.preventDefault();
+  const email = document.getElementById("email").value.trim();
+  if (!email) { showMsg("Inserisci prima la tua email, poi clicca sul recupero password."); return; }
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/reset-password.html" });
+  if (error) showMsg("Errore: " + error.message);
+  else showMsg("Ti abbiamo inviato un link per reimpostare la password.", "success");
+});
+</script>
+</body>
+</html>
