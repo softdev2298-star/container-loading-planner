@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — Container Loading Planner</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles/site.css">
+</head>
+<body class="appShell">
+<header class="siteHeader">
+  <div class="siteHeaderInner">
+    <a href="/dashboard.html" class="brand"><span class="logoMark"><svg viewBox="0 0 40 40"><rect x="5" y="9" width="30" height="22" rx="2" fill="none" stroke="#fff" stroke-width="2"/><rect x="8" y="12" width="10" height="7" fill="#f5b301"/><rect x="20" y="12" width="6" height="7" fill="#f5b301"/><rect x="28" y="12" width="4" height="7" fill="#f5b301"/><rect x="8" y="21" width="7" height="7" fill="#f5b301"/><rect x="17" y="21" width="9" height="7" fill="#f5b301"/><rect x="28" y="21" width="4" height="7" fill="#f5b301"/></svg></span><span>Container Loading Planner<small>Dashboard</small></span></a>
+    <nav class="siteNav"><a href="/dashboard.html" class="active">Progetti</a><a href="/team.html">Team</a><a href="/app.html?new=1" class="btn primary alwaysVisible">Nuovo progetto</a><div class="userMenu" id="userMenuWrap"><button class="userBtn" id="navMenuBtn"><span class="userAvatar" id="dashAvatar">—</span><span id="userEmail" class="userEmail">—</span>▾</button><div class="userDropdown" id="navDropdown"><div class="userDropdownHeader" id="navDropdownEmail"></div><a href="/dashboard.html" class="userDropdownItem">📁 Progetti</a><a href="/team.html" class="userDropdownItem">👥 Team</a><a href="#" id="logoutBtn" class="userDropdownItem userDropdownDanger">Logout</a></div></div></nav>
+  </div>
+</header>
+<main class="dashWrap">
+  <section class="dashHero">
+    <div><span class="badge">Area progetti</span><h1>I tuoi piani di carico</h1><p id="companyHint">Crea, riapri e condividi layout container salvati in cloud.</p></div>
+    <a href="/app.html?new=1" class="btn gold big">+ Nuovo progetto</a>
+  </section>
+  <section class="dashStats" id="dashStats" style="display:none"><div class="dashStat"><span>Progetti</span><b id="statProjects">0</b></div><div class="dashStat"><span>Ultimo aggiornamento</span><b id="statLast">—</b></div><div class="dashStat"><span>Cloud</span><b>Attivo</b></div></section>
+  <div id="content"><div class="loadingState">Caricamento progetti…</div></div>
+</main>
+<script type="module">
+import { requireAuth, listProjects, deleteProject, signOut, getMyCompany } from "/lib/auth.js";
+const user = await requireAuth();
+if (user) {
+  document.getElementById("userEmail").textContent = user.email;
+  document.getElementById("navDropdownEmail").textContent = user.email;
+  document.getElementById("dashAvatar").textContent = user.email.slice(0, 2);
+}
+document.getElementById("logoutBtn").addEventListener("click", e => { e.preventDefault(); signOut(); });
+document.getElementById("navMenuBtn").addEventListener("click", e => { e.stopPropagation(); const dd = document.getElementById("navDropdown"); dd.style.display = dd.style.display === "block" ? "none" : "block"; });
+document.addEventListener("click", () => { document.getElementById("navDropdown").style.display = "none"; });
+const company = await getMyCompany();
+if (company) document.getElementById("companyHint").innerHTML = `<b>${esc(company.name)}</b> · ${esc(company.country)} · Ruolo: <b>${company.role === "admin" ? "Admin" : "Membro"}</b>`;
+async function refresh() {
+  const content = document.getElementById("content");
+  try {
+    const projects = await listProjects();
+    document.getElementById("dashStats").style.display = "grid";
+    document.getElementById("statProjects").textContent = projects.length;
+    document.getElementById("statLast").textContent = projects[0]?.updated_at ? new Date(projects[0].updated_at).toLocaleDateString("it-IT") : "—";
+    if (!projects.length) {
+      content.innerHTML = `<div class="emptyState"><h2>Nessun progetto ancora</h2><p>Apri il planner e crea il tuo primo layout container.</p><a href="/app.html?new=1" class="btn primary">Crea il primo progetto</a></div>`;
+      return;
+    }
+    content.innerHTML = `<div class="projectGrid"><a href="/app.html?new=1" class="projectCard newCard"><div><div>+</div><div>Nuovo progetto</div></div></a>${projects.map(p => `<a href="/app.html?id=${p.id}" class="projectCard"><h3>${esc(p.name || "Senza nome")}</h3><p>${esc(p.container_key || "Container non specificato")}</p><div class="meta"><span>Aggiornato ${new Date(p.updated_at || p.created_at).toLocaleDateString("it-IT")}</span><button data-id="${p.id}" class="deleteBtn">Elimina</button></div></a>`).join("")}</div>`;
+    content.querySelectorAll(".deleteBtn").forEach(b => b.addEventListener("click", async e => { e.preventDefault(); e.stopPropagation(); if (!confirm("Eliminare questo progetto?")) return; try { await deleteProject(b.dataset.id); await refresh(); } catch (err) { alert("Errore: " + err.message); } }));
+  } catch (err) { content.innerHTML = `<div class="emptyState"><h2>Errore caricamento</h2><p>${esc(err.message)}</p></div>`; }
+}
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+refresh();
+</script>
+</body>
+</html>
